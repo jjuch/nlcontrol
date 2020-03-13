@@ -1,4 +1,6 @@
 import numpy as np
+import matplotlib
+matplotlib.rcParams['text.usetex'] = True
 import matplotlib.pyplot as plt
 
 from sympy.physics.mechanics import dynamicsymbols, msubs
@@ -117,7 +119,6 @@ class UMS():
         else:
             print('Error: Matrix F should have the same length as the length of the state vector.')
             return False
-
         self.x, self.xdot = self.create_statespace()
 
         self.sys = DynamicalSystem(state_equation=self.xdot, state=self.x, input_=self.inputs)
@@ -188,7 +189,7 @@ class UMS():
             sys_lin = DynamicalSystem(state_equation=r_dot_lin, state=self.x, input_=self.inputs)
             return r_dot_lin, sys_lin
 
-    def simulate_system(self, initial_conditions, tspan, system=None, show: bool=False) -> object:
+    def simulate_system(self, initial_conditions, tspan, system=None, show: bool=False, nsteps:int=None) -> object:
         """Simulate the system for an initial condition for a predefined length. There is also an option to show figures.
         Parameters:
         -----------
@@ -196,29 +197,48 @@ class UMS():
         :tspan: the length of the simulation in seconds.
         :system: (optional, default self.sys) Simupy DynamicalSystem object.
         :show: (optional, default False) boolean to indicate if plots need to be shown.
+        :nsteps: (optional, default None) integer, steps per integrator step, scipy default is 500.
         """
         if system is None:
             system = self.sys
         
         BD = BlockDiagram(system)
         system.initial_condition = initial_conditions
-        res = BD.simulate(tspan)
+        if (nsteps != None):
+            INTEGRATOR_OPTIONS = {
+                'name': 'dopri5',
+                'rtol': 1e-6,
+                'atol': 1e-12,
+                'nsteps': nsteps,
+                'max_step': 0.0
+            }
+            res = BD.simulate(tspan, integrator_options=INTEGRATOR_OPTIONS)
+        else:
+            res = BD.simulate(tspan)
         
         x = res.x[:, 0]
         theta = res.x[:, 2]
 
+        plt.figure()
+        ObjectLines = plt.plot(res.t, x, res.t, theta)
+        plt.legend(iter(ObjectLines), [el for el in tuple(self.states)])
+        plt.title('states versus time')
+        plt.xlabel('time (s)')
+        plt.show()
+
         if show:
             plt.figure()
-            ObjectLines = plt.plot(res.t, x, res.t, theta)
-            plt.legend(iter(ObjectLines), ['x', 'theta'])
-            plt.show()
-
-            plt.figure()
             ObjectLines = plt.plot(res.x[:, 0], res.x[:, 1])
+            plt.title(r'$q_1$ vs $\displaystyle\frac{dq_1}{dt}$')
+            plt.xlabel(r'$q_1$')
+            plt.ylabel(r'$\dot{q_1}$')
             plt.show()
 
             plt.figure()
             ObjectLines = plt.plot(res.x[:, 2], res.x[:, 3])
+            plt.title(r'$q_2$ vs $\displaystyle\frac{dq_2}{dt}$')
+            plt.xlabel(r'$q_2$')
+            plt.ylabel(r'$\dot{q_2}$')
             plt.show()
 
         return res
