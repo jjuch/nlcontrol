@@ -1,4 +1,6 @@
 import numpy as np
+import matplotlib
+matplotlib.rcParams['text.usetex'] = True
 import matplotlib.pyplot as plt
 
 from sympy.physics.mechanics import dynamicsymbols, msubs
@@ -117,7 +119,6 @@ class UMS():
         else:
             print('Error: Matrix F should have the same length as the length of the state vector.')
             return False
-
         self.x, self.xdot = self.create_statespace()
 
         self.sys = DynamicalSystem(state_equation=self.xdot, state=self.x, input_=self.inputs)
@@ -207,18 +208,26 @@ class UMS():
         x = res.x[:, 0]
         theta = res.x[:, 2]
 
+        plt.figure()
+        ObjectLines = plt.plot(res.t, x, res.t, theta)
+        plt.legend(iter(ObjectLines), [el for el in tuple(self.states)])
+        plt.title('states versus time')
+        plt.xlabel('time (s)')
+        plt.show()
+
         if show:
             plt.figure()
-            ObjectLines = plt.plot(res.t, x, res.t, theta)
-            plt.legend(iter(ObjectLines), ['x', 'theta'])
-            plt.show()
-
-            plt.figure()
             ObjectLines = plt.plot(res.x[:, 0], res.x[:, 1])
+            plt.title(r'$q_1$ vs $\displaystyle\frac{dq_1}{dt}$')
+            plt.xlabel(r'$q_1$')
+            plt.ylabel(r'$\dot{q_1}$')
             plt.show()
 
             plt.figure()
             ObjectLines = plt.plot(res.x[:, 2], res.x[:, 3])
+            plt.title(r'$q_2$ vs $\displaystyle\frac{dq_2}{dt}$')
+            plt.xlabel(r'$q_2$')
+            plt.ylabel(r'$\dot{q_2}$')
             plt.show()
 
         return res
