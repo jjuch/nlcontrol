@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 
 from sympy.physics.mechanics import dynamicsymbols, msubs
 from sympy import symbols, cos, sin
-from sympy.matrices import Matrix
+from sympy.matrices import Matrix, ones
 from sympy.tensor.array import Array
 from sympy import diff
 
@@ -42,10 +42,25 @@ class UMS():
         self.F = None
         self.states = Matrix(dynamicsymbols(states))
         self.dstates = Matrix(dynamicsymbols(states, 1))
-        self.inputs = dynamicsymbols(inputs)
+        if (',' in inputs):
+            self.inputs = Matrix(dynamicsymbols(inputs))
+        else:
+            self.inputs = Matrix([dynamicsymbols(inputs)])
         self.x = None
         self.xdot = None
         self.sys = None
+
+    def createVariables(self) -> tuple:
+        '''
+        Returns a tuple with all variables. First the states are given, next the derivative of the states, and finally the inputs.
+
+        Returns:
+        --------
+        :Variables [tuple]: all variables as described above
+        '''
+        var_list_states = self.dstates.row_insert(0, self.states)
+        var_list = self.inputs.row_insert(0, var_list_states) 
+        return tuple(var_list)    
 
     def define_system(self, M, C, K, F) -> bool:
         """Define the UMS system using the differential equation representation:
@@ -71,9 +86,9 @@ class UMS():
 
         length_states = len(self.states)
         # M should be symmetric
-        if self.check_symmetry(M):
+        if self.check_symmetry(M_mat):
             # M should have dimensionality n
-            if M.shape[0] == length_states:
+            if M_mat.shape[0] == length_states:
                 self.M = M_mat
             else:
                 print('Error: Matrix M should be squared.')
@@ -83,21 +98,21 @@ class UMS():
             return False
 
         # Matrix C should have the dimension m x n
-        if C.shape[1] == length_states:
+        if C_mat.shape[1] == length_states:
             self.C = C_mat
         else:
             print('Error: Matrix C should have a row length equal to the number of states.')
             return False
 
         # Matrix K should have the dimension 1 x n
-        if K.shape[0] == length_states:
+        if K_mat.shape[0] == length_states:
             self.K = K_mat
         else:
             print('Error: Matrix K should have the same length as the length of the state vector.')
             return False
 
         # Matrix F should have the dimension 1 x n
-        if F.shape[0] == length_states:
+        if F_mat.shape[0] == length_states:
             self.F = F_mat
         else:
             print('Error: Matrix F should have the same length as the length of the state vector.')
@@ -107,10 +122,6 @@ class UMS():
 
         self.sys = DynamicalSystem(state_equation=self.xdot, state=self.x, input_=self.inputs)
         return True
-
-
-    def transformMatrix(self, matrix):
-
         
 
     
