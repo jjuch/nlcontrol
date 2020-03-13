@@ -54,21 +54,27 @@ class UMS():
 
         Parameters:
         -----------
-        :M [sympy.Matrix]: Inertia matrix, the matrix is positive definite symmetric. Size: n x n
-        :C [sympy.Matrix]: Coriolis/Centrifugal matrix. Size: m x n
-        :K [sympy.Matrix]: Gravity term. Size: n x 1
-        :F [sympy.Matrix]: External forces, non-square matrix. Size: n x 1
+        :M [list]: Inertia matrix, the matrix is positive definite symmetric. Size: n x n
+        :C [list]: Coriolis/Centrifugal matrix. Size: m x n
+        :K [list]: Gravity term. Size: n x 1
+        :F [list]: External forces, non-square matrix. Size: n x 1
 
         Output:
         -------
         :bool: success status
         """
+        # Transform to sympy matrices
+        M_mat = Matrix(M)
+        C_mat = Matrix(C)
+        K_mat = Matrix(K)
+        F_mat = Matrix(F)
+
         length_states = len(self.states)
         # M should be symmetric
         if self.check_symmetry(M):
             # M should have dimensionality n
             if M.shape[0] == length_states:
-                self.M = M
+                self.M = M_mat
             else:
                 print('Error: Matrix M should be squared.')
                 return False
@@ -78,21 +84,21 @@ class UMS():
 
         # Matrix C should have the dimension m x n
         if C.shape[1] == length_states:
-            self.C = C
+            self.C = C_mat
         else:
             print('Error: Matrix C should have a row length equal to the number of states.')
             return False
 
         # Matrix K should have the dimension 1 x n
         if K.shape[0] == length_states:
-            self.K = K
+            self.K = K_mat
         else:
             print('Error: Matrix K should have the same length as the length of the state vector.')
             return False
 
         # Matrix F should have the dimension 1 x n
         if F.shape[0] == length_states:
-            self.F = F
+            self.F = F_mat
         else:
             print('Error: Matrix F should have the same length as the length of the state vector.')
             return False
@@ -101,6 +107,10 @@ class UMS():
 
         self.sys = DynamicalSystem(state_equation=self.xdot, state=self.x, input_=self.inputs)
         return True
+
+
+    def transformMatrix(self, matrix):
+
         
 
     
