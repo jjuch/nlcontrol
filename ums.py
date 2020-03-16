@@ -38,10 +38,10 @@ class UMS():
             :states [str]: Position state variables
             :inputs [str]: input variables
         """
-        self.M = None
-        self.C = None
-        self.K = None
-        self.F = None
+        self._M = None
+        self._C = None
+        self._K = None
+        self._F = None
         self.states = Matrix(dynamicsymbols(states))
         self.dstates = Matrix(dynamicsymbols(states, 1))
         if (',' in inputs):
@@ -51,6 +51,33 @@ class UMS():
         self.x = None
         self.xdot = None
         self.sys = None
+
+    @property
+    def inertia_matrix(self) -> Matrix:
+        return self._M
+
+    @inertia_matrix.setter
+    def inertia_matrix(self, matrix:Matrix) -> bool:
+        self._M = matrix
+        return True
+
+    @property
+    def damping_matrix(self) -> Matrix:
+        return self._C
+
+    @damping_matrix.setter
+    def damping_matrix(self, matrix:Matrix) -> bool:
+        self._C = matrix
+        return True
+
+    @property
+    def elastic_matrix(self) -> Matrix:
+        return self._K
+
+    @elastic_matrix.setter
+    def elastic_matrix(self, matrix:Matrix) -> bool:
+        self._K = matrix
+        return True
 
     def createVariables(self) -> tuple:
         '''
@@ -91,7 +118,8 @@ class UMS():
         if self.check_symmetry(M_mat):
             # M should have dimensionality n
             if M_mat.shape[0] == length_states:
-                self.M = M_mat
+                # self.M = M_mat
+                self.inertia_matrix = M_mat
             else:
                 print('Error: Matrix M should be squared.')
                 return False
@@ -101,21 +129,23 @@ class UMS():
 
         # Matrix C should have the dimension m x n
         if C_mat.shape[1] == length_states:
-            self.C = C_mat
+            # self.C = C_mat
+            self.damping_matrix = C_mat
         else:
             print('Error: Matrix C should have a row length equal to the number of states.')
             return False
 
         # Matrix K should have the dimension 1 x n
         if K_mat.shape[0] == length_states:
-            self.K = K_mat
+            # self.K = K_mat
+            self.elastic_matrix = K_mat
         else:
             print('Error: Matrix K should have the same length as the length of the state vector.')
             return False
 
         # Matrix F should have the dimension 1 x n
         if F_mat.shape[0] == length_states:
-            self.F = F_mat
+            self._F = F_mat
         else:
             print('Error: Matrix F should have the same length as the length of the state vector.')
             return False
@@ -151,8 +181,8 @@ class UMS():
         :r: array of states.
         :r_dot: array of solutions for the derivative of states.
         """
-        M_inv = self.M.inv()
-        x_dotdot = M_inv * self.F - M_inv * self.C * self.dstates - M_inv * self.K
+        M_inv = self.inertia_matrix.inv()
+        x_dotdot = M_inv * self._F - M_inv * self.damping_matrix * self.dstates - M_inv * self.elastic_matrix
         r_dot = []
         n = len(self.states)
         r = Array(dynamicsymbols('r1:'+str(n*2+1)))

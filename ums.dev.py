@@ -16,7 +16,5 @@ F = [[L1], [L2]]
 
 ums.define_system(M, C, K, F)
 
-print(ums.M)
-print(ums.C)
-print(ums.K)
-print(ums.F)
+print(ums._M)
+print(ums.inertia_matrix)
