@@ -1,4 +1,5 @@
 from ums import UMS 
+from controller import Controller
 from sympy import cos, sin
 import numpy as np
 
@@ -16,7 +17,7 @@ K = [[x],[0]]
 F = [[0], [L2]]
 
 ums.define_system(M, C, K, F)
-ums.simulate_system([1, 0, np.pi/4, 0], 40, show=True)
+ums.simulate_system([1, 0, np.pi/4, 0], 40, show=False)
 
-print(ums._M)
-print(ums.inertia_matrix)
+contr = Controller(states, inputs, 2, 3)
+contr.test()
