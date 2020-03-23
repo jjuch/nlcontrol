@@ -3,7 +3,11 @@ import matplotlib
 matplotlib.rcParams['text.usetex'] = True
 import matplotlib.pyplot as plt
 
+from sympy.matrices import Matrix
+from sympy.physics.mechanics import dynamicsymbols
+
 from simupy.block_diagram import BlockDiagram
+from simupy.systems.symbolic import DynamicalSystem
 from eula import EulerLagrange
 
 class UMS(EulerLagrange):
@@ -32,7 +36,7 @@ class UMS(EulerLagrange):
             :states [str]: Position state variables
             :inputs [str]: input variables
         """
-        super()
+        super().__init__(states, inputs)
 
 
     def define_system(self, M, C, K, F) -> bool:
