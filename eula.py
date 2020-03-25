@@ -2,7 +2,7 @@ from sympy.physics.mechanics import dynamicsymbols, msubs
 from sympy import symbols, cos, sin
 from sympy.matrices import Matrix, ones
 from sympy.tensor.array import Array
-from sympy import diff
+from sympy import diff, Symbol
 
 from simupy.systems.symbolic import DynamicalSystem
 
@@ -29,22 +29,37 @@ class EulerLagrange():
             M(q).q'' + C(q, q').q' + K(q)= F(q).u
 
         Parameters:
-            states [str]: Position state variables.
-            inputs [str]: input variables.
+            states [str]: Position state variables. The variables are separated by ','.
+            inputs [str]: input variables. The variables are separated by ','.
         """
         self._M = None
         self._C = None
         self._K = None
         self._F = None
-        self.states = Matrix(dynamicsymbols(states))
-        self.dstates = Matrix(dynamicsymbols(states, 1))
-        if (',' in inputs):
-            self.inputs = Matrix(dynamicsymbols(inputs))
-        else:
-            self.inputs = Matrix([dynamicsymbols(inputs)])
+        self.states = self._process_init_input(states)
+        self.dstates = self._process_init_input(states, 1)
+        self.inputs = self._process_init_input(inputs)
         self.x = None
         self.xdot = None
         self.sys = None
+
+    
+    def _process_init_input(self, arg:str, level:int=0) -> Matrix:
+        '''Return the correct format of the processed __init__input. For a one-element input a different approach to create the parameter is needed.
+
+        Parameters:
+            arg [str]: an __init__ input string that needs to be processed. The variables are separated by ','.
+            level [int]: Level of differentiation of the returned function.
+
+        Returns:
+            matrix [Matrix]: a Matrix of dynamic symbols given by arg. 
+        '''
+
+        if (',' in arg):
+            return Matrix(dynamicsymbols(arg, level))
+        else:
+            return Matrix([dynamicsymbols(arg, level)])
+
 
     @property
     def inertia_matrix(self) -> Matrix:
@@ -73,15 +88,21 @@ class EulerLagrange():
         self._K = matrix
         return True
 
-    def createVariables(self) -> tuple:
+    def createVariables(self, input_diffs:bool=False) -> tuple:
         '''
-        Returns a tuple with all variables. First the states are given, next the derivative of the states, and finally the inputs.
+        Returns a tuple with all variables. First the states are given, next the derivative of the states, and finally the inputs, optionally followed by the diffs of the inputs.
+
+        Parameters:
+            input_diffs [bool]: also return the differentiated versions of the inputs.
 
         Returns:
             Variables [tuple]: all variables as described above.
         '''
         var_list_states = self.dstates.row_insert(0, self.states)
-        var_list = self.inputs.row_insert(0, var_list_states) 
+        var_list = self.inputs.row_insert(0, var_list_states)
+        if input_diffs:
+            input_diff_list = Matrix([diff(input_el, Symbol('t')) for input_el in self.inputs])
+            var_list = input_diff_list.row_insert(0, var_list)
         return tuple(var_list)
 
     def check_symmetry(self, matrix) -> bool:
