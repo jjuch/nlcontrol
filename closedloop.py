@@ -14,14 +14,21 @@ class ClosedLoop():
 
     def createBlockDiagram(self, forward_systems:list=None, backward_systems:list=None):
         if (forward_systems is None):
-            forward_systems = [self.system]
+            if (self.system is None):
+                print('Both the forward_systems argument and the ClosedLoop.system variable are empty. Please provide a forward_system.')
+                return
+            else:
+                forward_systems = [self.system]
         if (backward_systems is None):
-            backward_systems = [self.controller]
+            if (self.system is None):
+                print('Both the backward_systems argument and the ClosedLoop.controller variable are empty. Please provide a backward_system.')
+                return
+            else:
+                backward_systems = [self.controller]
 
         BD = BlockDiagram()
         if (len(forward_systems) is not 0):
             for forward_system in forward_systems:
-                print('forward_system: ', forward_system.dim_output)
                 BD.add_system(forward_system)
         if (len(backward_systems) is not 0):
             for backward_system in backward_systems:
