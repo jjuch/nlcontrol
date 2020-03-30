@@ -77,7 +77,7 @@ class SystemBase():
 
     def series(self, sys_append):
         if (self.sys.dim_output != sys_append.sys.dim_input):
-            print('It is not possible to put two systems in serial configuration where the dimension of the output of the first system is not equal to the dimension of the inputs of the second system.')
+            print('It is not possible to put two systems in serial configuration where the dimension of the output of the first system is not equal to the dimension of the input of the second system.')
             return
         else:
             inputs = self.inputs
@@ -100,8 +100,31 @@ class SystemBase():
                     state_equations = Array(self.sys.state_equation.tolist() + state_equations2.tolist())
                 return SystemBase(states, inputs, DynamicalSystem(state_equation=state_equations, state=states, input_=inputs, output_equation=output_equations))
 
-    def parallel(self, sys):
-        pass
 
-    def getStateSpace(self):
-        pass
+    def parallel(self, sys_append):
+        if (self.sys.dim_input != sys_append.sys.dim_input):
+            print('It is not possible to put two systems in parallel configuration where the dimension of the input of the first system is not equal to the dimension of the input of the second system.')
+            return
+        elif (self.sys.dim_output != sys_append.sys.dim_output):
+            print('It is not possible to put two systems in parallel configuration where the dimension of the output of the first system is not equal to the dimension of the output of the second system.')
+            return
+        else:
+            inputs = self.inputs
+            substitutions = dict(zip(sys_append.sys.input, self.sys.input))
+            output_equations = Array([value[0] + value[1] for value in zip(self.sys.output_equation, [msubs(expr, substitutions) for expr in sys_append.sys.output_equation])])
+            if (self.states is None):
+                if (sys_append.states is None):
+                    return SystemBase(None, inputs, MemorylessSystem(input_=inputs, output_equation=output_equations))
+                else:
+                    states = sys_append.states
+                    state_equations = Array([msubs(expr, substitutions) for expr in sys_append.sys.state_equation])
+                    return SystemBase(states, inputs, DynamicalSystem(state_equation=state_equations, state=states, input_=inputs, output_equation=output_equations))
+            else:
+                if (sys_append.states is None):
+                    states = self.states
+                    state_equations = self.sys.state_equation
+                else:
+                    states = Array(self.states.tolist() + sys_append.states.tolist())
+                    state_equations2 = Array(msubs(expr, substitutions) for expr in sys_append.sys.state_equation)
+                    state_equations = Array(self.sys.state_equation.tolist() + state_equations2.tolist())
+                return SystemBase(states, inputs, DynamicalSystem(state_equation=state_equations, state=states, input_=inputs, output_equation=output_equations))
