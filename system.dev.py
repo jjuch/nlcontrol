@@ -1,8 +1,12 @@
 from systems.system import SystemBase
+from simupy.block_diagram import BlockDiagram
 from simupy.systems.symbolic import MemorylessSystem, DynamicalSystem
+from simupy.systems import SystemFromCallable
 from sympy.tensor.array import Array
 from sympy.functions.special.delta_functions import Heaviside
 from sympy import Symbol
+
+import numpy as np
 
 states1 = 'x1'
 inputs1 = 'u1'
@@ -23,7 +27,20 @@ sys3 = SystemBase(states3, inputs3)
 x2, x2dot, u2, u2dot = sys3.createVariables(True)
 sys3.system = DynamicalSystem(state_equation=Array([x2 - u2**2]), state=Array([x2]), output_equation=Array([x2]),  input_=u2)
 
-mode = 'null'
+states4 = 'x3, x4'
+inputs4 = 'u3'
+sys4 = SystemBase(states4, inputs4)
+x3, x4, x3dot, x4dot, u3 = sys4.createVariables()
+sys4.system = DynamicalSystem(state_equation=Array([-x3 + x4 + u3, -x4 + 0.5 * x3]), state=Array([x3, x4]), output_equation=Array([x3, x4]), input_=u3)
+
+states5 = 'x5'
+inputs5 = 'u4, u5'
+sys5 = SystemBase(states5, inputs5)
+x5, x5dot, u4, u5 = sys5.createVariables()
+sys5.system = DynamicalSystem(state_equation=Array([-x5 + u4 - u5]), state=Array([x5]), output_equation=Array([x5]), input_=Array([u4, u5]))
+
+
+mode = 'series'
 if mode is 'series':
     series_sys1 = sys1.series(sys2)
     print(series_sys1.sys.state_equation)
@@ -44,6 +61,12 @@ if mode is 'series':
     # print(series_sys4.sys.state_equation)
     print(series_sys4.sys.output_equation)
     print(series_sys4, ' - ', series_sys4.sys)
+
+    series_md = sys4.series(sys5)
+    print(series_md.sys.state)
+    print(series_md.sys.state_equation)
+    print(series_md.sys.output_equation)
+    print(series_md, ' - ', series_md.sys)
 elif mode is 'parallel':
     parallel_sys1 = sys1.parallel(sys2)
     print(parallel_sys1.sys.state_equation)
@@ -65,6 +88,23 @@ elif mode is 'parallel':
     print(parallel_sys4.sys.output_equation)
     print(parallel_sys4, ' - ', parallel_sys4.sys)
 
-input_signal = Heaviside(Symbol('t'))
-print(input_signal)
-sys1.simulation([1], 20)
+def ref_signal1(t, *args):
+    if (t - 5 > 0):
+        return np.r_[1.4]
+    else:
+        return np.r_[0.4]
+
+def ref_signal2(t, *args):
+    if (t - 5 > 0):
+        return np.r_[1.4, 1.5]
+    else:
+        return np.r_[0.4, 0.5]
+
+input_signal1 = SystemBase(states=None, inputs=None, sys=SystemFromCallable(ref_signal1, 0, 1))
+# print(input_signal1.sys.output_equation_function(0))
+# print(input_signal1.sys.output_equation_function(6))
+input_signal2 = SystemBase(states=None, inputs=None, sys=SystemFromCallable(ref_signal2, 0, 2))
+
+sys1.simulation([0.8], 20, input_signals=input_signal1)
+series_md.simulation([0.1, 0.5, 0.2], 20, input_signals=input_signal1)
+sys5.simulation([0.5], 20, input_signals=input_signal2)

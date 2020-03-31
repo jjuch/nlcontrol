@@ -1,3 +1,5 @@
+import sys,traceback
+
 from simupy.block_diagram import BlockDiagram
 
 from sympy.physics.mechanics import dynamicsymbols
@@ -17,6 +19,10 @@ class SystemBase():
         self.dstates = self._process_init_input(states, 1)
         self.inputs = self._process_init_input(inputs)
         self.sys = sys
+
+
+    def __copy__(self):
+        return SystemBase(self.states.copy(), self.inputs.copy(), sys=self.sys.copy())
 
     @property
     def system(self):
@@ -78,8 +84,9 @@ class SystemBase():
 
     def series(self, sys_append):
         if (self.sys.dim_output != sys_append.sys.dim_input):
-            print('It is not possible to put two systems in serial configuration where the dimension of the output of the first system is not equal to the dimension of the input of the second system.')
-            return
+            error_text = '[SystemBase.series] Dimension of output of the first system is not equal to dimension of input of the second system.'
+            raise ValueError(error_text)
+            # raise SystemExit(error_text), None, sys.exc_info()[2]
         else:
             inputs = self.inputs
             substitutions = dict(zip(sys_append.sys.input, self.sys.output_equation))
@@ -104,11 +111,11 @@ class SystemBase():
 
     def parallel(self, sys_append):
         if (self.sys.dim_input != sys_append.sys.dim_input):
-            print('It is not possible to put two systems in parallel configuration where the dimension of the input of the first system is not equal to the dimension of the input of the second system.')
-            return
+            error_text = '[SystemBase.parallel] Dimension of the input of the first system is not equal to the dimension of the input of the second system.'
+            raise ValueError(error_text)
         elif (self.sys.dim_output != sys_append.sys.dim_output):
-            print('It is not possible to put two systems in parallel configuration where the dimension of the output of the first system is not equal to the dimension of the output of the second system.')
-            return
+            error_text = '[SystemBase.parallel] Dimension of the output of the first system is not equal to the dimension of the output of the second system.'
+            raise ValueError(error_text)
         else:
             inputs = self.inputs
             substitutions = dict(zip(sys_append.sys.input, self.sys.input))
@@ -130,27 +137,49 @@ class SystemBase():
                     state_equations = Array(self.sys.state_equation.tolist() + state_equations2.tolist())
                 return SystemBase(states, inputs, DynamicalSystem(state_equation=state_equations, state=states, input_=inputs, output_equation=output_equations))
 
-    
-    def simulation(self, initial_conditions, tspan):
-        system = self.system
-        print(system.output_equation)
-        BD = BlockDiagram(self.system)
-        system.initial_condition = initial_conditions
-        res = BD.simulate(tspan)
+
+    def __connect_input(self, input_signal, base_system=None, block_diagram:BlockDiagram=None):
+        if base_system is None:
+            base_system = self
+        elif not isinstance(base_system, SystemBase):
+            error_text = '[SystemBase.__connect_input] The system should be an SystemBase instance.'
+            raise TypeError(error_text)
         
-        x = res.x[:, 0]
-        print(res.x)
+        if block_diagram is None:
+            BD = BlockDiagram(input_signal.system, base_system.system)
+        else:
+            BD = block_diagram
+            BD.add_system(input_signal.system)
+            if not base_system.system in set(block_diagram.systems):
+                BD.add_system(base_system.system)
+        
+        BD.connect(input_signal.system, base_system.system)
+        return BD
+
+    
+    def simulation(self, initial_conditions, tspan, input_signals=None):
+        base_system = self.__copy__()
+
+        inputs = input_signals.system
+        BD = self.__connect_input(input_signals, base_system=base_system)
+        base_system.system.initial_condition = initial_conditions
+        res = BD.simulate(tspan)
 
         plt.figure()
-        ObjectLines = plt.plot(res.t, x)
-        plt.legend(iter(ObjectLines), [el for el in tuple(self.system.state)])
+        plt.subplot(121)
+        for i in range(base_system.system.dim_state):
+            plt.plot(res.t, res.x[:, i], label=base_system.states[i])
         plt.title('states versus time')
         plt.xlabel('time (s)')
+        plt.legend()
+        plt.subplot(122)
+        max_inputs_index = base_system.system.dim_input
+        for j in range(max_inputs_index):
+            plt.plot(res.t, res.y[:, j], label=base_system.inputs[j])
+        for k in range(base_system.system.dim_output):
+            plt.plot(res.t, res.y[:, k + max_inputs_index], label='y' + str(k))
+        plt.title('inputs and outputs versus time')
+        plt.xlabel('time (s)')
+        plt.legend()
         plt.show()
-
-        # print(res.y)
-        # plt.figure()
-        # ObjectLines = plt.plot(res.t, res.y[:,0], res.t, res.y[:,1], res.t, res.y[:, 2])
-        # plt.legend(iter(ObjectLines), ['x', 'dx', 'u'])
-        # plt.show()
         return res
