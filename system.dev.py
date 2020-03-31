@@ -1,9 +1,9 @@
 from systems.system import SystemBase
+from signals import step
 from simupy.block_diagram import BlockDiagram
 from simupy.systems.symbolic import MemorylessSystem, DynamicalSystem
 from simupy.systems import SystemFromCallable
 from sympy.tensor.array import Array
-from sympy.functions.special.delta_functions import Heaviside
 from sympy import Symbol
 
 import numpy as np
@@ -100,11 +100,13 @@ def ref_signal2(t, *args):
     else:
         return np.r_[0.4, 0.5]
 
+input_step = step(step_times=[5, 15], end_values=[0.9, 1.1], begin_values=[0.2, 0.15])
+
 input_signal1 = SystemBase(states=None, inputs=None, sys=SystemFromCallable(ref_signal1, 0, 1))
 # print(input_signal1.sys.output_equation_function(0))
 # print(input_signal1.sys.output_equation_function(6))
 input_signal2 = SystemBase(states=None, inputs=None, sys=SystemFromCallable(ref_signal2, 0, 2))
 
-sys1.simulation([0.8], 20, input_signals=input_signal1)
-series_md.simulation([0.1, 0.5, 0.2], 20, input_signals=input_signal1)
-sys5.simulation([0.5], 20, input_signals=input_signal2)
+# sys1.simulation([0.8], 20, input_signals=input_signal1)
+# series_md.simulation([0.1, 0.5, 0.2], 20, input_signals=input_signal1)
+sys5.simulation([0.5], 20, input_signals=input_step)
