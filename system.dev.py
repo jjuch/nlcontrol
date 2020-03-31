@@ -1,12 +1,14 @@
-from system import SystemBase
+from systems.system import SystemBase
 from simupy.systems.symbolic import MemorylessSystem, DynamicalSystem
 from sympy.tensor.array import Array
+from sympy.functions.special.delta_functions import Heaviside
+from sympy import Symbol
 
 states1 = 'x1'
 inputs1 = 'u1'
 sys1 = SystemBase(states1, inputs1)
 x1, x1dot, u1 = sys1.createVariables()
-sys1.system = DynamicalSystem(state_equation=Array([x1 + u1]), state=Array([x1]), output_equation=x1,  input_=u1)
+sys1.system = DynamicalSystem(state_equation=Array([-x1 + u1]), state=Array([x1]), output_equation=x1,  input_=u1)
 
 
 states2 = None
@@ -21,7 +23,7 @@ sys3 = SystemBase(states3, inputs3)
 x2, x2dot, u2, u2dot = sys3.createVariables(True)
 sys3.system = DynamicalSystem(state_equation=Array([x2 - u2**2]), state=Array([x2]), output_equation=Array([x2]),  input_=u2)
 
-mode = 'parallel'
+mode = 'null'
 if mode is 'series':
     series_sys1 = sys1.series(sys2)
     print(series_sys1.sys.state_equation)
@@ -42,7 +44,7 @@ if mode is 'series':
     # print(series_sys4.sys.state_equation)
     print(series_sys4.sys.output_equation)
     print(series_sys4, ' - ', series_sys4.sys)
-else:
+elif mode is 'parallel':
     parallel_sys1 = sys1.parallel(sys2)
     print(parallel_sys1.sys.state_equation)
     print(parallel_sys1.sys.output_equation)
@@ -62,3 +64,7 @@ else:
     # print(parallel_sys4.sys.state_equation)
     print(parallel_sys4.sys.output_equation)
     print(parallel_sys4, ' - ', parallel_sys4.sys)
+
+input_signal = Heaviside(Symbol('t'))
+print(input_signal)
+sys1.simulation([1], 20)

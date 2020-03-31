@@ -9,6 +9,7 @@ from sympy.tensor.array import Array
 from simupy.systems.symbolic import MemorylessSystem, DynamicalSystem
 
 import numpy as np
+import matplotlib.pyplot as plt
 
 class SystemBase():
     def __init__(self, states, inputs, sys=None):
@@ -128,3 +129,28 @@ class SystemBase():
                     state_equations2 = Array(msubs(expr, substitutions) for expr in sys_append.sys.state_equation)
                     state_equations = Array(self.sys.state_equation.tolist() + state_equations2.tolist())
                 return SystemBase(states, inputs, DynamicalSystem(state_equation=state_equations, state=states, input_=inputs, output_equation=output_equations))
+
+    
+    def simulation(self, initial_conditions, tspan):
+        system = self.system
+        print(system.output_equation)
+        BD = BlockDiagram(self.system)
+        system.initial_condition = initial_conditions
+        res = BD.simulate(tspan)
+        
+        x = res.x[:, 0]
+        print(res.x)
+
+        plt.figure()
+        ObjectLines = plt.plot(res.t, x)
+        plt.legend(iter(ObjectLines), [el for el in tuple(self.system.state)])
+        plt.title('states versus time')
+        plt.xlabel('time (s)')
+        plt.show()
+
+        # print(res.y)
+        # plt.figure()
+        # ObjectLines = plt.plot(res.t, res.y[:,0], res.t, res.y[:,1], res.t, res.y[:, 2])
+        # plt.legend(iter(ObjectLines), ['x', 'dx', 'u'])
+        # plt.show()
+        return res

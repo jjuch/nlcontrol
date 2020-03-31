@@ -1,7 +1,7 @@
 from simupy.block_diagram import BlockDiagram
-from simupy.systems import LTISystem
-from sympy import eye
 from sympy.matrices import Matrix
+
+from closedloop.blocks import gain_block
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -41,12 +41,12 @@ class ClosedLoop():
             else:
                 BD.connect(forward_systems[i], forward_systems[i + 1])
         if (len(backward_systems) == 0):
-            negative_feedback = self.gain_block(-1, forward_systems[-1].dim_output)
+            negative_feedback = gain_block(-1, forward_systems[-1].dim_output)
             BD.add_system(negative_feedback)
             BD.connect(forward_systems[-1], negative_feedback)
             BD.connect(negative_feedback, forward_systems[0])
         else:
-            negative_feedback = self.gain_block(-1, backward_systems[-1].dim_output)
+            negative_feedback = gain_block(-1, backward_systems[-1].dim_output)
             BD.add_system(negative_feedback)
             for j in range(len(backward_systems)):
                 if (j == len(backward_systems) - 1):
@@ -55,10 +55,6 @@ class ClosedLoop():
                 else:
                     BD.connect(backward_systems[j], backward_systems[j + 1])
         return BD
-
-    def gain_block(self, value, dim):
-        gain_list = value * eye(dim)
-        return LTISystem(gain_list)
 
 
     def simulate(self, initial_conditions, tspan):

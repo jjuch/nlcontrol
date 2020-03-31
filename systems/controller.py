@@ -1,4 +1,4 @@
-from eula import EulerLagrange
+from systems.eula import EulerLagrange
 
 from sympy.matrices import Matrix
 from sympy.tensor.array import Array

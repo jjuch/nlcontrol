@@ -8,7 +8,8 @@ from sympy.physics.mechanics import dynamicsymbols
 
 from simupy.block_diagram import BlockDiagram
 from simupy.systems.symbolic import DynamicalSystem
-from eula import EulerLagrange
+
+from systems.eula import EulerLagrange
 
 class UMS(EulerLagrange):
     """
