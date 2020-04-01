@@ -1,5 +1,4 @@
-from systems.ums import UMS 
-from systems.controller import Controller
+from systems import UMS, Controller
 from closedloop.feedback import ClosedLoop
 
 from sympy import cos, sin, eye

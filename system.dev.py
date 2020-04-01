@@ -1,4 +1,4 @@
-from systems.system import SystemBase
+from systems import SystemBase
 from signals import step
 from simupy.block_diagram import BlockDiagram
 from simupy.systems.symbolic import MemorylessSystem, DynamicalSystem
