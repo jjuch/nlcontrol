@@ -6,7 +6,7 @@ from sympy import diff, Symbol
 
 from simupy.systems.symbolic import DynamicalSystem
 
-from systems.system import SystemBase
+from nlcontrol.systems import SystemBase
 
 class EulerLagrange(SystemBase):
     """

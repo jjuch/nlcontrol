@@ -1,4 +1,4 @@
-from systems.system import SystemBase
+import nlcontrol.systems as nlSystems
 from simupy.systems import SystemFromCallable
 from sympy.tensor.array import Array
 import numpy as np
@@ -89,11 +89,36 @@ def step(*args, **kwargs):
         error_text = '[signals.step] Too many arguments without a keyword.'
         raise AssertionError(error_text)
 
+    print(len(args), " - ", len(kwargs), ' - ', step_times, ' - ', begin_values, ' - ', end_values, ' - ', dim)
+
 
     def callable(t, *args):
         mask = [t - el >= 0 for el in step_times]
         values = np.array([end_values[index] if mask_val else begin_values[index] for index, mask_val in enumerate(mask)])
         return values
+    
+    def callable_state(t, *args):
+        return np.r_[0]
 
-    return SystemBase(states=None, inputs=None, sys=SystemFromCallable(callable, 0, dim))
+    system = SystemFromCallable(callable, 0, dim)
+    system.dim_state = 1
+    system.state_equation_function = callable_state
+
+    return nlSystems.SystemBase(states=None, inputs=None, sys=system)
+
+
+def empty_signal(dim, add_states=False):
+    if (dim == 0):
+        dim = 1
+    def callable(t, *args):
+        return np.array(dim * [0])
+
+    def callable_state(t, *args):
+        return np.r_[0]
+
+    system = SystemFromCallable(callable, 0, dim)
+    if add_states:
+        system.dim_state = 1
+        system.state_equation_function = callable_state
+    return nlSystems.SystemBase(states=None, inputs=None, sys=system)
         

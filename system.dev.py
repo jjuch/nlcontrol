@@ -1,5 +1,5 @@
-from systems import SystemBase
-from signals import step
+from nlcontrol.systems import SystemBase
+from nlcontrol.signals import step, empty_signal
 from simupy.block_diagram import BlockDiagram
 from simupy.systems.symbolic import MemorylessSystem, DynamicalSystem
 from simupy.systems import SystemFromCallable
@@ -25,13 +25,13 @@ states3 = 'x2'
 inputs3 = 'u2'
 sys3 = SystemBase(states3, inputs3)
 x2, x2dot, u2, u2dot = sys3.createVariables(True)
-sys3.system = DynamicalSystem(state_equation=Array([x2 - u2**2]), state=Array([x2]), output_equation=Array([x2]),  input_=u2)
+sys3.system = DynamicalSystem(state_equation=Array([-x2 - u2**2]), state=Array([x2]), output_equation=Array([x2]),  input_=u2)
 
 states4 = 'x3, x4'
 inputs4 = 'u3'
 sys4 = SystemBase(states4, inputs4)
 x3, x4, x3dot, x4dot, u3 = sys4.createVariables()
-sys4.system = DynamicalSystem(state_equation=Array([-x3 + x4 + u3, -x4 + 0.5 * x3]), state=Array([x3, x4]), output_equation=Array([x3, x4]), input_=u3)
+sys4.system = DynamicalSystem(state_equation=Array([-x3 + x4 + u3, -x4 + 0.5 * x3]), state=Array([x3, x4]), output_equation=Array([x3 * x4, x4]), input_=u3)
 
 states5 = 'x5'
 inputs5 = 'u4, u5'
@@ -100,13 +100,21 @@ def ref_signal2(t, *args):
     else:
         return np.r_[0.4, 0.5]
 
-input_step = step(step_times=[5, 15], end_values=[0.9, 1.1], begin_values=[0.2, 0.15])
+input_step1 = step()
+input_step2 = step(step_times=[5, 15], end_values=[0.9, 1.1], begin_values=[0.2, 0.15])
+input_empty = empty_signal(sys2.system.dim_input, add_states=True)
 
 input_signal1 = SystemBase(states=None, inputs=None, sys=SystemFromCallable(ref_signal1, 0, 1))
 # print(input_signal1.sys.output_equation_function(0))
 # print(input_signal1.sys.output_equation_function(6))
 input_signal2 = SystemBase(states=None, inputs=None, sys=SystemFromCallable(ref_signal2, 0, 2))
 
-# sys1.simulation([0.8], 20, input_signals=input_signal1)
-# series_md.simulation([0.1, 0.5, 0.2], 20, input_signals=input_signal1)
-sys5.simulation([0.5], 20, input_signals=input_step)
+time_axis = np.linspace(0, 20, 100)
+sys1.simulation(time_axis, initial_conditions=1, input_signals=input_signal1, plot=False)
+series_md.simulation(20, initial_conditions=[0.1, 0.5, 0.2], input_signals=input_signal1, plot=False)
+series_md.simulation(20, initial_conditions=[0.1, 0.5, 0.2], plot=False)
+sys5.simulation([2, 20], initial_conditions=[0.5], input_signals=input_step2, plot=False)
+
+sys2.simulation(time_axis, plot=True, input_signals=input_step1)
+
+input_step2.simulation(time_axis, plot=True)
