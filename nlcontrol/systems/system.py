@@ -2,7 +2,6 @@ import nlcontrol.signals as sgnls
 
 import sys,traceback
 from copy import deepcopy, copy
-from simupy.block_diagram import BlockDiagram, SimulationResult
 
 from sympy.physics.mechanics import dynamicsymbols
 from sympy.matrices import Matrix
@@ -10,7 +9,10 @@ from sympy.tensor.array.ndim_array import NDimArray
 from sympy.physics.mechanics import msubs
 from sympy import Symbol, diff
 from sympy.tensor.array import Array
-from simupy.systems.symbolic import MemorylessSystem, DynamicalSystem
+
+from simupy.block_diagram import BlockDiagram, SimulationResult
+from simupy.systems.symbolic import MemorylessSystem, DynamicalSystem, lambdify_with_vector_args
+from simupy.systems import DynamicalSystem as DynamicalSystem2
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -179,8 +181,15 @@ class SystemBase():
                 t = np.linspace(tspan[0], tspan[1], number_of_samples)
             else:
                 t = np.array(tspan)
-            self._getOutputEquation()
-            y = [base_system.system.output_equation(t_i) for t_i in t]
+
+            func = self.__get_output_equation()
+            if base_system.inputs is None:
+                y = np.stack([func(t_el) for t_el in t])
+            else:
+                if input_signals is None:
+                    input_signals = sgnls.empty_signal(base_system.system.dim_input)
+                u = np.stack([input_signals.system.output_equation_function(t_i) for t_i in t])
+                y = np.stack([func(u_el) for u_el in u])
             if plot:
                 plt.figure()
                 for k in range(base_system.system.dim_output):
@@ -192,9 +201,6 @@ class SystemBase():
             return t, y
             
         else: 
-            # if input_signals is None and not (base_system.states is None and base_system.inputs is None):
-            #     print('wiwi')
-            #     input_signals = sgnls.empty_signal(base_system.system.dim_input, add_states=True)
             BD = self.__connect_input(input_signals, base_system=base_system)
             if initial_conditions is not None:
                 if isinstance(initial_conditions, (int, float)):
@@ -211,23 +217,27 @@ class SystemBase():
             
             t = res.t
             x = res.x
-            y = res.y[:, max_inputs_index:]
-            u = res.y[:, :max_inputs_index]
+            if len(res.y[0]) == (base_system.system.dim_input + base_system.system.dim_output):
+                y = res.y[:, max_inputs_index:]
+                u = res.y[:, :max_inputs_index]
+            else:
+                y = res.y
+                shape_u = (len(t), base_system.system.dim_input)
+                u = np.zeros(shape_u)
 
             if plot:
                 plt.figure()
-                if base_system.states is not None:
-                    plt.subplot(121)
-                    for i in range(base_system.system.dim_state):
-                        plt.plot(res.t, res.x[:, i], label=base_system.states[i])
-                    plt.title('states versus time')
-                    plt.xlabel('time (s)')
-                    plt.legend()
-                    plt.subplot(122)
+                plt.subplot(121)
+                for i in range(base_system.system.dim_state):
+                    plt.plot(t, x[:, i], label=base_system.states[i])
+                plt.title('states versus time')
+                plt.xlabel('time (s)')
+                plt.legend()
+                plt.subplot(122)
                 for j in range(max_inputs_index):
-                    plt.plot(res.t, res.y[:, j], label=base_system.inputs[j])
+                    plt.plot(t, u[:, j], label=base_system.inputs[j])
                 for k in range(base_system.system.dim_output):
-                    plt.plot(res.t, res.y[:, k + max_inputs_index], label='y' + str(k))
+                    plt.plot(t, y[:, k], label='y' + str(k))
                 plt.title('inputs and outputs versus time')
                 plt.xlabel('time (s)')
                 plt.legend()
@@ -251,10 +261,20 @@ class SystemBase():
             system_with_states.initial_condition = res.x[index]
         return res
 
-    def _getOutputEquation(self):
-        print(type(self.system))
-        if (isinstance(self.system, DynamicalSystem)):
-            print(self.system.output_equation)
+    def __get_output_equation(self):
+        if self.inputs is None:
+            if (isinstance(self.system, DynamicalSystem2)):
+                return self.system.output_equation_function
+            else:
+                error_text = '[system.__get_output_equation] The datatype DynamicalSystem2 is expected and not DynamicalSystem.'
+                raise TypeError(error_text)
+        else:
+            if (isinstance(self.system, DynamicalSystem)):
+                return lambdify_with_vector_args(self.system.input, self.system.output_equation)
+            else:
+                error_text = '[system.__get_output_equation] The datatype DynamicalSystem is expected and not DynamicalSystem2.'
+                raise TypeError(error_text)
+            
 
     
     def linearize(self, working_point:list):

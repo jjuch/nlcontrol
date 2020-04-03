@@ -46,6 +46,10 @@ def step(*args, **kwargs):
         if False in test_kwargs:
             error_text = '[signals.step] the inputs have different dimensions.'
             raise ValueError(error_text)
+        for key, value in kwargs.items():
+            if not (key in ("step_times", "begin_values", "end_values")):
+                error_text = "[signals.step] The step function accepts the keywords step_times, begin_values, and end_values. The keyword {} is not recognized".format(key)
+                raise KeyError(error_text)
 
 
     dim = 1
@@ -89,36 +93,24 @@ def step(*args, **kwargs):
         error_text = '[signals.step] Too many arguments without a keyword.'
         raise AssertionError(error_text)
 
-    print(len(args), " - ", len(kwargs), ' - ', step_times, ' - ', begin_values, ' - ', end_values, ' - ', dim)
-
 
     def callable(t, *args):
         mask = [t - el >= 0 for el in step_times]
         values = np.array([end_values[index] if mask_val else begin_values[index] for index, mask_val in enumerate(mask)])
         return values
-    
-    def callable_state(t, *args):
-        return np.r_[0]
 
     system = SystemFromCallable(callable, 0, dim)
-    system.dim_state = 1
-    system.state_equation_function = callable_state
 
     return nlSystems.SystemBase(states=None, inputs=None, sys=system)
 
 
-def empty_signal(dim, add_states=False):
+def empty_signal(dim):
     if (dim == 0):
         dim = 1
+
     def callable(t, *args):
         return np.array(dim * [0])
 
-    def callable_state(t, *args):
-        return np.r_[0]
-
     system = SystemFromCallable(callable, 0, dim)
-    if add_states:
-        system.dim_state = 1
-        system.state_equation_function = callable_state
     return nlSystems.SystemBase(states=None, inputs=None, sys=system)
         
