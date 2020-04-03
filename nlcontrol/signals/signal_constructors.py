@@ -26,8 +26,8 @@ def step(*args, **kwargs):
             sys : SystemFromCallable object 
                 with a function 'callable' returning a numpy array in function of time t, 0 inputs, and dim outputs.
 
-    Example:
-    -------
+    Examples:
+    ---------
         * 1-channel unity step at second 0:
         >>> step_signal = step()
 
@@ -48,7 +48,7 @@ def step(*args, **kwargs):
             raise ValueError(error_text)
         for key, value in kwargs.items():
             if not (key in ("step_times", "begin_values", "end_values")):
-                error_text = "[signals.step] The step function accepts the keywords step_times, begin_values, and end_values. The keyword {} is not recognized".format(key)
+                error_text = "[signals.step] The step function accepts the keywords step_times, begin_values, and end_values. The keyword {} is not recognized.".format(key)
                 raise KeyError(error_text)
 
 

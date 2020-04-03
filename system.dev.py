@@ -12,7 +12,7 @@ states1 = 'x1'
 inputs1 = 'u1'
 sys1 = SystemBase(states1, inputs1)
 x1, x1dot, u1 = sys1.createVariables()
-sys1.system = DynamicalSystem(state_equation=Array([-x1 + u1]), state=Array([x1]), output_equation=x1,  input_=u1)
+sys1.system = DynamicalSystem(state_equation=Array([-x1 + u1]), state=x1, output_equation=x1,  input_=u1)
 
 
 states2 = None
@@ -108,19 +108,26 @@ input_empty = empty_signal(sys2.system.dim_input)
 
 
 time_axis = np.linspace(0, 20, 100)
-# 1
-sys1.simulation(time_axis, initial_conditions=1, input_signals=input_step3, plot=True)
-# 2
-series_md.simulation(20, initial_conditions=[0.1, 0.5, 0.2], input_signals=input_step3, plot=True)
-# 3
-series_md.simulation(20, initial_conditions=[0.1, 0.5, 0.2], plot=True)
-# 4A
-sys5.simulation([2, 20], initial_conditions=[0.5], input_signals=input_step2, plot=True)
-# 4B
-sys5.simulation([2, 20], initial_conditions=[0.5], input_signals=input_step4, plot=True)
-# 5
-sys2.simulation(time_axis, plot=True, input_signals=input_step3)
-#6
-sys2.simulation([0, 15], initial_conditions=1, plot=True)
-# 7
-input_step2.simulation(time_axis, plot=True)
+
+test_simulation = False
+if test_simulation:
+    # 1
+    sys1.simulation(time_axis, initial_conditions=1, input_signals=input_step3, plot=True)
+    # 2
+    series_md.simulation(20, initial_conditions=[0.1, 0.5, 0.2], input_signals=input_step3, plot=True)
+    # 3
+    series_md.simulation(20, initial_conditions=[0.1, 0.5, 0.2], plot=True)
+    # 4A
+    sys5.simulation([2, 20], initial_conditions=[0.5], input_signals=input_step2, plot=True)
+    # 4B
+    sys5.simulation([2, 20], initial_conditions=[0.5], input_signals=input_step4, plot=True)
+    # 5
+    sys2.simulation(time_axis, plot=True, input_signals=input_step3)
+    #6
+    sys2.simulation([0, 15], initial_conditions=1, plot=True)
+    # 7
+    input_step2.simulation(time_axis, plot=True)
+
+sys5.simulation([2, 20], initial_conditions=[0.5], input_signals=input_step2, plot=False)
+integrator_options = {'nsteps': 1000}
+sys5.simulation([2, 20], initial_conditions=[0.5], input_signals=input_step2, plot=True, custom_integrator_options=integrator_options)
