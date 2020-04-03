@@ -1,6 +1,7 @@
 import nlcontrol.signals as sgnls
 
 from copy import deepcopy, copy
+import warnings
 
 from sympy.physics.mechanics import dynamicsymbols
 from sympy.matrices import Matrix
@@ -73,9 +74,9 @@ class SystemBase():
 
     """
     def __init__(self, states, inputs, sys=None):
-        self.states = self.__process_init_input(states)
-        self.dstates = self.__process_init_input(states, 1)
-        self.inputs = self.__process_init_input(inputs)
+        self.states = self.__process_init_input__(states)
+        self.dstates = self.__process_init_input__(states, 1)
+        self.inputs = self.__process_init_input__(inputs)
         self.sys = sys
 
 
@@ -94,7 +95,7 @@ class SystemBase():
         self.sys = system  
 
 
-    def __process_init_input(self, arg:str, level:int=0) -> Matrix:
+    def __process_init_input__(self, arg:str, level:int=0) -> Matrix:
         '''Return the correct format of the processed __init__input. For a one-element input a different approach to create the parameter is needed.
 
         Parameters:
@@ -154,6 +155,55 @@ class SystemBase():
                 input_diff_list = Matrix([diff(input_el, Symbol('t')) for input_el in inputs_matrix])
                 var_list = input_diff_list.row_insert(0, var_list)
             return tuple(var_list)
+
+    
+    def linearize(self, working_point_states, working_point_inputs=None):
+        """
+        In many cases a nonlinear system is observed around a certain working point. In the state space close to this working point it is save to say that a linearized version of the nonlinear system is a sufficient approximation. The linearized model allows the user to use linear control techniques to examine the nonlinear system close to this working point. A first order Taylor expansion is used to obtain the linearized system.
+
+        Parameters:
+        -----------
+            working_point : list or int
+                the state equations are linearized around the working point.
+
+        Returns:
+        --------
+
+        """
+        if type(self.system) is DynamicalSystem2:
+            print("Foute class")
+            print(type(self.system))
+            print(DynamicalSystem , " - ", DynamicalSystem2)
+            print(isinstance(self.system, DynamicalSystem))
+            print(isinstance(self.system, DynamicalSystem2))
+            warnings.warn("[SystemBase.linearize] A dynamical system with a lambdafied state equation cannot be linearized.", UserWarning)
+            return None
+        if np.isscalar(working_point_states):
+            working_point_states = [working_point_states]
+        if (len(working_point_states) != len(self.states)):
+            error_text = '[SystemBase.linearize] The working point should have the same size as the dimension of the states.'
+            raise ValueError(error_text)
+
+        substitutions_states = dict(zip(self.states, working_point_states))
+        state_equation = self.system.state_equation
+        state_equation_linearized = []
+        for k in range(len(self.dstates)):
+            linearized_term = 0
+            for j in range(len(self.states)):
+                linearized_term += msubs(diff(state_equation[k], self.states[j]), substitutions_states) * (self.states[j] - substitutions_states[self.states[j]])
+                print('Hier: ', linearized_term)
+            if working_point_inputs is not None:
+                for l in range(len(self.inputs)):
+                    # TODO: working point 
+                    linearized_term += msubs(diff(state_equation[k], self.inputs[l]), substitutions) * (self.inputs[l] - substitutions[self.inputs[l]])
+                    print('Hier: ', linearized_term)
+            linearized_term += msubs(state_equation[k], substitutions_states)
+            state_equation_linearized.append(linearized_term)
+        state_equation_linearized = Array(linearized_term)
+        system_dyn = DynamicalSystem(state_equation=state_equation_linearized, state=self.states, input_=self.inputs, output_equation=self.system.output_equation)
+        system = SystemBase(states=self.states, inputs=self.inputs, sys=system_dyn)
+        return system
+
 
 
     def series(self, sys_append):
@@ -331,7 +381,7 @@ class SystemBase():
             else:
                 t = np.array(tspan)
 
-            func = self.__get_output_equation()
+            func = self.__get_output_equation__()
             if base_system.inputs is None:
                 u = []
                 y = np.stack([func(t_el) for t_el in t])
@@ -354,7 +404,7 @@ class SystemBase():
             return t, y, u
             
         else: 
-            BD = self.__connect_input(input_signals, base_system=base_system)
+            BD = self.__connect_input__(input_signals, base_system=base_system)
             if initial_conditions is not None:
                 if isinstance(initial_conditions, (int, float)):
                     initial_conditions = [initial_conditions]
@@ -381,7 +431,7 @@ class SystemBase():
             elif len(tspan) == 2:
                 res = BD.simulate(tspan, integrator_options=integrator_options)
             else:
-                res = self.__simulation_loop(tspan, BD, base_system.system, integrator_options)
+                res = self.__simulation_loop__(tspan, BD, base_system.system, integrator_options)
             
             t = res.t
             x = res.x
@@ -414,14 +464,14 @@ class SystemBase():
             return t, x, y, u, res
 
 
-    def __connect_input(self, input_signal=None, base_system=None, block_diagram=None):
+    def __connect_input__(self, input_signal=None, base_system=None, block_diagram=None):
         """
         Connects an input signal to a SystemBase object in a new simupy.BlockDiagram or in an existing simupy.BlockDiagram.
         """
         if base_system is None:
             base_system = self
         elif not isinstance(base_system, SystemBase):
-            error_text = '[SystemBase.__connect_input] The system should be an SystemBase instance.'
+            error_text = '[SystemBase.__connect_input__] The system should be an SystemBase instance.'
             raise TypeError(error_text)
 
         if input_signal is None:
@@ -443,7 +493,7 @@ class SystemBase():
         return BD
 
 
-    def __simulation_loop(self, time, block_diagram, system_with_states, integrator_options):
+    def __simulation_loop__(self, time, block_diagram, system_with_states, integrator_options):
         """
         Loop through a time vector and simulate the simupy.BlockDiagram object for a each given time. Returns a simupy.SimulationResult object.
         """
@@ -463,7 +513,7 @@ class SystemBase():
         return res
 
 
-    def __get_output_equation(self):
+    def __get_output_equation__(self):
         """
         Returns the lambdified output equation function of a SystemBase object.
         """
@@ -471,31 +521,11 @@ class SystemBase():
             if (isinstance(self.system, DynamicalSystem2)):
                 return self.system.output_equation_function
             else:
-                error_text = '[system.__get_output_equation] The datatype DynamicalSystem2 is expected and not DynamicalSystem.'
+                error_text = '[system.__get_output_equation__] The datatype DynamicalSystem2 is expected and not DynamicalSystem.'
                 raise TypeError(error_text)
         else:
             if (isinstance(self.system, DynamicalSystem)):
                 return lambdify_with_vector_args(self.system.input, self.system.output_equation)
             else:
-                error_text = '[system.__get_output_equation] The datatype DynamicalSystem is expected and not DynamicalSystem2.'
-                raise TypeError(error_text)
-            
-
-    
-    def linearize(self, working_point:list):
-        """
-        A nonlinear system is linearized around a working point.
-
-        Parameters:
-        -----------
-            working_point : list or int
-                the x_dot is linearized around the working point.
-
-        Returns:
-        --------
-
-        """
-        pass
-
-
-        
+                error_text = '[system.__get_output_equation__] The datatype DynamicalSystem is expected and not DynamicalSystem2.'
+                raise TypeError(error_text)        

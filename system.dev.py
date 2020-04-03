@@ -13,6 +13,8 @@ inputs1 = 'u1'
 sys1 = SystemBase(states1, inputs1)
 x1, x1dot, u1 = sys1.createVariables()
 sys1.system = DynamicalSystem(state_equation=Array([-x1 + u1]), state=x1, output_equation=x1,  input_=u1)
+sys1_lin = sys1.linearize(1)
+print('state_eq: ',sys1_lin.system.state_equation)
 
 
 states2 = None
@@ -25,7 +27,9 @@ states3 = 'x2'
 inputs3 = 'u2'
 sys3 = SystemBase(states3, inputs3)
 x2, x2dot, u2, u2dot = sys3.createVariables(True)
-sys3.system = DynamicalSystem(state_equation=Array([-x2 - u2**2]), state=Array([x2]), output_equation=Array([x2]),  input_=u2)
+sys3.system = DynamicalSystem(state_equation=Array([-x2**2 - u2**2]), state=Array([x2]), output_equation=Array([x2]),  input_=u2)
+sys3_lin = sys3.linearize(1)
+print('state_eq: ',sys3_lin.system.state_equation)
 
 states4 = 'x3, x4'
 inputs4 = 'u3'
@@ -87,18 +91,6 @@ elif mode is 'parallel':
     # print(parallel_sys4.sys.state_equation)
     print(parallel_sys4.sys.output_equation)
     print(parallel_sys4, ' - ', parallel_sys4.sys)
-
-def ref_signal1(t, *args):
-    if (t - 5 > 0):
-        return np.r_[1.4]
-    else:
-        return np.r_[0.4]
-
-def ref_signal2(t, *args):
-    if (t - 5 > 0):
-        return np.r_[1.4, 1.5]
-    else:
-        return np.r_[0.4, 0.5]
 
 input_step1 = step()
 input_step2 = step(step_times=[5, 15], end_values=[0.9, 1.1], begin_values=[0.2, 0.15])
