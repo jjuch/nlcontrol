@@ -159,23 +159,29 @@ class SystemBase():
     
     def linearize(self, working_point_states, working_point_inputs=None):
         """
-        In many cases a nonlinear system is observed around a certain working point. In the state space close to this working point it is save to say that a linearized version of the nonlinear system is a sufficient approximation. The linearized model allows the user to use linear control techniques to examine the nonlinear system close to this working point. A first order Taylor expansion is used to obtain the linearized system.
+        In many cases a nonlinear system is observed around a certain working point. In the state space close to this working point it is save to say that a linearized version of the nonlinear system is a sufficient approximation. The linearized model allows the user to use linear control techniques to examine the nonlinear system close to this working point. A first order Taylor expansion is used to obtain the linearized system. A working point for the states is necessary, but the working point for the input is optional.
 
         Parameters:
         -----------
-            working_point : list or int
-                the state equations are linearized around the working point.
+            working_point_states : list or int
+                the state equations are linearized around the working point of the states.
+            working_point_inputs : list or int
+                the state equations are linearized around the working point of the states and inputs.
 
         Returns:
         --------
+            A SystemBase object with the same states and inputs as the original system. The state equation is linearized.
+
+        Examples:
+        ---------
+            * Print the state equation of the linearized system of `sys' around the state's working point x[1] = 1 and x[2] = 5 and the input's working point u = 2:
+            >>> sys_lin = sys.linearize([1, 5], 2)
+            >>> print('Linearized state equation: ', sys_lin.system.state_equation)
+            
+        #TODO: return a control toolbox object
 
         """
         if type(self.system) is DynamicalSystem2:
-            print("Foute class")
-            print(type(self.system))
-            print(DynamicalSystem , " - ", DynamicalSystem2)
-            print(isinstance(self.system, DynamicalSystem))
-            print(isinstance(self.system, DynamicalSystem2))
             warnings.warn("[SystemBase.linearize] A dynamical system with a lambdafied state equation cannot be linearized.", UserWarning)
             return None
         if np.isscalar(working_point_states):
@@ -185,6 +191,15 @@ class SystemBase():
             raise ValueError(error_text)
 
         substitutions_states = dict(zip(self.states, working_point_states))
+        if working_point_inputs is not None:
+            if np.isscalar(working_point_inputs):
+                working_point_inputs = [working_point_inputs]
+            if (len(working_point_inputs) != len(self.inputs)):
+                error_text = '[SystemBase.linearize] The working point should have the same size as the dimension of the inputs.'
+                raise ValueError(error_text)
+
+            substitutions_inputs = dict(zip(self.inputs, working_point_inputs))
+            substitutions_states = dict(list(substitutions_states.items()) + list(substitutions_inputs.items()))
         state_equation = self.system.state_equation
         state_equation_linearized = []
         for k in range(len(self.dstates)):
@@ -195,7 +210,7 @@ class SystemBase():
             if working_point_inputs is not None:
                 for l in range(len(self.inputs)):
                     # TODO: working point 
-                    linearized_term += msubs(diff(state_equation[k], self.inputs[l]), substitutions) * (self.inputs[l] - substitutions[self.inputs[l]])
+                    linearized_term += msubs(diff(state_equation[k], self.inputs[l]), substitutions_inputs) * (self.inputs[l] - substitutions_inputs[self.inputs[l]])
                     print('Hier: ', linearized_term)
             linearized_term += msubs(state_equation[k], substitutions_states)
             state_equation_linearized.append(linearized_term)

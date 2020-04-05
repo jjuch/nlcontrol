@@ -28,7 +28,7 @@ inputs3 = 'u2'
 sys3 = SystemBase(states3, inputs3)
 x2, x2dot, u2, u2dot = sys3.createVariables(True)
 sys3.system = DynamicalSystem(state_equation=Array([-x2**2 - u2**2]), state=Array([x2]), output_equation=Array([x2]),  input_=u2)
-sys3_lin = sys3.linearize(1)
+sys3_lin = sys3.linearize(1,2)
 print('state_eq: ',sys3_lin.system.state_equation)
 
 states4 = 'x3, x4'
