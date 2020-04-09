@@ -9,4 +9,4 @@ Functions:
     empty_signal: An N-channel zero signal
 """
 
-from .signal_constructors import step, empty_signal
+from .signal_constructors import step, empty_signal, sinusoid

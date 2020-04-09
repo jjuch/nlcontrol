@@ -13,7 +13,7 @@ inputs1 = 'u1'
 sys1 = SystemBase(states1, inputs1)
 x1, x1dot, u1 = sys1.createVariables()
 sys1.system = DynamicalSystem(state_equation=Array([-x1 + u1]), state=x1, output_equation=x1,  input_=u1)
-sys1_lin = sys1.linearize(1)
+sys1_lin, _ = sys1.linearize(1)
 print('state_eq: ',sys1_lin.system.state_equation)
 
 
@@ -28,7 +28,7 @@ inputs3 = 'u2'
 sys3 = SystemBase(states3, inputs3)
 x2, x2dot, u2, u2dot = sys3.createVariables(True)
 sys3.system = DynamicalSystem(state_equation=Array([-x2**2 - u2**2]), state=Array([x2]), output_equation=Array([x2]),  input_=u2)
-sys3_lin = sys3.linearize(1,2)
+sys3_lin, _ = sys3.linearize(1,2)
 print('state_eq: ',sys3_lin.system.state_equation)
 
 states4 = 'x3, x4'
@@ -36,7 +36,7 @@ inputs4 = 'u3'
 sys4 = SystemBase(states4, inputs4)
 x3, x4, x3dot, x4dot, u3 = sys4.createVariables()
 sys4.system = DynamicalSystem(state_equation=Array([-x3 + x4 + u3, -x4 + 0.5 * x3]), state=Array([x3, x4]), output_equation=Array([x3 * x4, x4]), input_=u3)
-sys4_lin = sys4.linearize([2, 1], 1)
+sys4_lin, _ = sys4.linearize([2, 1], 1)
 print('state_eq: ', sys4_lin.system.state_equation)
 
 states5 = 'x5'
