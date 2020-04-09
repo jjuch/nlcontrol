@@ -43,7 +43,7 @@ def step(dim=None, step_times=None, begin_values=None, end_values=None):
         >>> step_signal = step(begin_values=[1, 2], end_values=[3, 2.5])
     """
     def _check_inputs(dim_arg, **kwargs):
-        dims = [0 if value is None else 1 if isinstance(value, int) else len(value) for key, value in kwargs.items()]
+        dims = [0 if value is None else 1 if np.isscalar(value) else len(value) for key, value in kwargs.items()]
         if dim_arg is not None:
             dims.append(dim_arg)
         else:
@@ -54,15 +54,10 @@ def step(dim=None, step_times=None, begin_values=None, end_values=None):
             raise ValueError(error_text)
 
         #defaults
-        dim = 1
+        dim = 1 if len(dims_filter) == 0 else dims_filter[0]
         step_times = dim * [0]
         begin_values = dim * [0]
         end_values = dim * [1]
-        if dim_arg is not None:
-            dim = dim_arg
-            step_times = dim * [0]
-            begin_values = dim * [0]
-            end_values = dim * [1]
         if kwargs['step_times'] is not None:
             step_times = [kwargs['step_times']] if np.isscalar(kwargs['step_times']) else kwargs['step_times']
             dim = len(step_times)
@@ -88,9 +83,9 @@ def step(dim=None, step_times=None, begin_values=None, end_values=None):
     return nlSystems.SystemBase(states=None, inputs=None, sys=system)
 
 
-def sinusoid(dim=None, amplitude=None, frequency=None, phase_shift=None):
+def sinusoid(dim=None, amplitude=None, frequency=None, phase_shift=None, y_shift=None):
     """
-    Creates a BaseSystem class object with a sinusoid signal. The signal can consist of multiple channels. This makes it possible to connect the sinusoid system to a system with multiple inputs. Without any arguments a one-channel sinusoid with amplitude 1, frequency 1 Hz and phase shift 0 rad is returned. By adding a dimension (int) N an N-channel sinusoid with amplitude 1, frequency 1 Hz and phase shift 0 rad is returned. The keyword arguments allow the creation of more customization: 'amplitude' defines the amplitude of the sines, 'frequency' defines the frequency in Hz, and 'phase_shift' defines the phase shift in radians. These three keyword arguments need to have the same dimension and are defined as lists or as an int. Each keyword is optional and left blank defaults to amplitude 1, frequency 1 Hz, and phase shift 0 rad. For the sinusoid, numpy's sin function is used.
+    Creates a BaseSystem class object with a sinusoid signal. The signal can consist of multiple channels. This makes it possible to connect the sinusoid system to a system with multiple inputs. Without any arguments a one-channel sinusoid with amplitude 1, frequency 1 Hz,  phase shift 0 rad and 0 y-shift is returned. By adding a dimension (int) N an N-channel sinusoid with amplitude 1, frequency 1 Hz, phase shift 0 rad, and y-shift 0 is returned. The keyword arguments allow the creation of more customization: 'amplitude' defines the amplitude of the sines, 'frequency' defines the frequency in Hz, 'phase_shift' defines the phase shift in radians, and 'y_shift' defines the shift of the sine compared to the y-axis. These four keyword arguments need to have the same dimension and are defined as lists or as an int. Each keyword is optional and left blank defaults to amplitude 1, frequency 1 Hz, phase shift 0 rad, and y-shift 0. For the sinusoid, numpy's sin function is used.
 
     Parameters:
     -----------
@@ -102,6 +97,8 @@ def sinusoid(dim=None, amplitude=None, frequency=None, phase_shift=None):
             frequency in Hz of the sinusoid, default: 1.
         phase_shift : list or int, optional
             phase shift in radians of sinusoid, default: 0.
+        y_shift : list or int, optional
+            shift of the sinusoid on y-axis, default: 0.
 
     Returns:
     --------
@@ -124,11 +121,11 @@ def sinusoid(dim=None, amplitude=None, frequency=None, phase_shift=None):
         * 2-channel sinusoids [2.sin(2.pi.t), 5.sin(2.pi.t)]:
         >>> sinusoid_signal = sinusoid(amplitude=[2, 5]) 
         
-        * 2-channel sinusoids [sin(2.pi.t + 3), sin(2.pi.2.t + 2.5)]:
-        >>> step_signal = step(frequency=[1, 2], phase_shift=[3, 2.5])
+        * 2-channel sinusoids [sin(2.pi.t + 3) + 2, sin(2.pi.2.t + 2.5) - 1]:
+        >>> step_signal = step(frequency=[1, 2], phase_shift=[3, 2.5], y_shift=[2, -1])
     """
     def _check_inputs(dim_arg, **kwargs):
-        dims = [0 if value is None else 1 if isinstance(value, int) else len(value) for key, value in kwargs.items()]
+        dims = [0 if value is None else 1 if np.isscalar(value) else len(value) for key, value in kwargs.items()]
         if dim_arg is not None:
             dims.append(dim_arg)
         else:
@@ -139,15 +136,11 @@ def sinusoid(dim=None, amplitude=None, frequency=None, phase_shift=None):
             raise ValueError(error_text)
 
         #defaults
-        dim = 1
+        dim = dim = 1 if len(dims_filter) == 0 else dims_filter[0]
         amplitude = dim * [1]
         frequency = dim * [1]
         phase_shift = dim * [0]
-        if dim_arg is not None:
-            dim = dim_arg
-            amplitude = dim * [1]
-            frequency = dim * [1]
-            phase_shift = dim * [0]
+        y_shift = dim * [0]
         if kwargs['amplitude'] is not None:
             amplitude = [kwargs['amplitude']] if np.isscalar(kwargs['amplitude']) else kwargs['amplitude']
             dim = len(amplitude)
@@ -157,15 +150,18 @@ def sinusoid(dim=None, amplitude=None, frequency=None, phase_shift=None):
         if kwargs['phase_shift'] is not None:
             phase_shift = [kwargs['phase_shift']] if np.isscalar(kwargs['phase_shift']) else kwargs['phase_shift']
             dim = len(phase_shift)
+        if kwargs['y_shift'] is not None:
+            y_shift = [kwargs['y_shift']] if np.isscalar(kwargs['y_shift']) else kwargs['y_shift']
+            dim = len(y_shift)
 
-        return dim, amplitude, frequency, phase_shift
+        return dim, amplitude, frequency, phase_shift, y_shift
     
-    dim, amplitude, frequency, phase_shift = \
+    dim, amplitude, frequency, phase_shift, y_shift = \
         _check_inputs(dim, amplitude=amplitude, \
-            frequency=frequency, phase_shift=phase_shift)
+            frequency=frequency, phase_shift=phase_shift, y_shift=y_shift)
 
     def callable(t, *args):
-        return np.array([A * np.sin(2*np.pi*f*t + phi) for A, f, phi in zip(amplitude, frequency, phase_shift)])
+        return np.array([A * np.sin(2*np.pi*f*t + phi) + y for A, f, phi, y in zip(amplitude, frequency, phase_shift, y_shift)])
     
     system = SystemFromCallable(callable, 0, dim)
     return nlSystems.SystemBase(states=None, inputs=None, sys=system)
@@ -198,5 +194,4 @@ def empty_signal(dim):
     return nlSystems.SystemBase(states=None, inputs=None, sys=system)
 
 
-
-        
+      
