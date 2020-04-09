@@ -16,6 +16,7 @@ from simupy.systems import DynamicalSystem as DynamicalSystem2
 
 import numpy as np
 import matplotlib.pyplot as plt
+import control
 
 DEFAULT_INTEGRATOR_OPTIONS = {
     'name': 'dopri5',
@@ -170,15 +171,16 @@ class SystemBase():
 
         Returns:
         --------
-            A SystemBase object with the same states and inputs as the original system. The state equation is linearized.
+            sys_lin: SystemBase object 
+                with the same states and inputs as the original system. The state and output equation is linearized.
+            sys_control: control.StateSpace object
 
         Examples:
         ---------
             * Print the state equation of the linearized system of `sys' around the state's working point x[1] = 1 and x[2] = 5 and the input's working point u = 2:
-            >>> sys_lin = sys.linearize([1, 5], 2)
+            >>> sys_lin, sys_control = sys.linearize([1, 5], 2)
             >>> print('Linearized state equation: ', sys_lin.system.state_equation)
             
-        #TODO: return a control toolbox object
 
         """
         if type(self.system) is DynamicalSystem2:
@@ -200,24 +202,48 @@ class SystemBase():
 
             substitutions_inputs = dict(zip(self.inputs, working_point_inputs))
             substitutions_states = dict(list(substitutions_states.items()) + list(substitutions_inputs.items()))
-        state_equation = self.system.state_equation
-        state_equation_linearized = []
-        for k in range(len(self.dstates)):
-            linearized_term = 0
-            for j in range(len(self.states)):
-                linearized_term += msubs(diff(state_equation[k], self.states[j]), substitutions_states) * (self.states[j] - substitutions_states[self.states[j]])
-                print('Hier: ', linearized_term)
-            if working_point_inputs is not None:
-                for l in range(len(self.inputs)):
-                    # TODO: working point 
-                    linearized_term += msubs(diff(state_equation[k], self.inputs[l]), substitutions_inputs) * (self.inputs[l] - substitutions_inputs[self.inputs[l]])
-                    print('Hier: ', linearized_term)
-            linearized_term += msubs(state_equation[k], substitutions_states)
-            state_equation_linearized.append(linearized_term)
-        state_equation_linearized = Array(linearized_term)
-        system_dyn = DynamicalSystem(state_equation=state_equation_linearized, state=self.states, input_=self.inputs, output_equation=self.system.output_equation)
+
+        def create_linear_equation(nl_expr):
+            linearized_expr = []
+            for k in range(len(self.dstates)):
+                linearized_term = 0
+                for j in range(len(self.states)):
+                    linearized_term += msubs(diff(nl_expr[k], self.states[j]), substitutions_states) * (self.states[j] - substitutions_states[self.states[j]])
+
+                if working_point_inputs is not None:
+                    for l in range(len(self.inputs)):
+                        linearized_term += msubs(diff(nl_expr[k], self.inputs[l]), substitutions_inputs) * (self.inputs[l] - substitutions_inputs[self.inputs[l]])
+                linearized_term += msubs(nl_expr[k], substitutions_states)
+                linearized_expr.append(linearized_term)
+            return Array(linearized_expr)
+
+        state_equation_linearized = create_linear_equation(self.system.state_equation)
+        output_equation_linearized = create_linear_equation(self.system.output_equation)
+        print(state_equation_linearized)
+        print(output_equation_linearized)
+        system_dyn = DynamicalSystem(state_equation=state_equation_linearized, state=self.states, input_=self.inputs, output_equation=output_equation_linearized)
         system = SystemBase(states=self.states, inputs=self.inputs, sys=system_dyn)
-        return system
+        
+        def get_state_space_matrices(state_equations, output_equations):
+            A = []
+            B = []
+            C = []
+            D = []
+            for i in range(len(state_equations)):
+                col_A = [state_equations[i].coeff(state) for state in self.states]
+                A.append(col_A)
+                col_B = [state_equations[i].coeff(input_el) for input_el in self.inputs]
+                B.append(col_B)
+            for j in range(len(output_equations)):
+                col_C = [output_equations[j].coeff(state) for state in self.states]
+                C.append(col_C)
+                col_D = [output_equations[j].coeff(input_el) for input_el in self.inputs]
+                D.append(col_D)
+            return np.array(A), np.array(B), np.array(C), np.array(D)
+
+        A, B, C, D = get_state_space_matrices(state_equation_linearized, output_equation_linearized)
+        sys_control = control.ss(A, B, C, D)
+        return system, sys_control
 
 
 

@@ -36,6 +36,8 @@ inputs4 = 'u3'
 sys4 = SystemBase(states4, inputs4)
 x3, x4, x3dot, x4dot, u3 = sys4.createVariables()
 sys4.system = DynamicalSystem(state_equation=Array([-x3 + x4 + u3, -x4 + 0.5 * x3]), state=Array([x3, x4]), output_equation=Array([x3 * x4, x4]), input_=u3)
+sys4_lin = sys4.linearize([2, 1], 1)
+print('state_eq: ', sys4_lin.system.state_equation)
 
 states5 = 'x5'
 inputs5 = 'u4, u5'
