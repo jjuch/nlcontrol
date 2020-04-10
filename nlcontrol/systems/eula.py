@@ -1,6 +1,5 @@
-from sympy.physics.mechanics import dynamicsymbols, msubs
-from sympy import symbols, cos, sin
-from sympy.matrices import Matrix, ones
+from sympy.physics.mechanics import msubs
+from sympy.matrices import Matrix
 from sympy.tensor.array import Array
 from sympy import diff, Symbol
 
@@ -12,30 +11,85 @@ from itertools import chain
 
 class EulerLagrange(SystemBase):
     """
-    A class that defines an Euler-Lagrange formulated Systems.
+    EulerLagrange(states, inputs, sys=None)
 
-    Attributes
-    ----------
-    M: Inertia matrix - Inertia forces (positive definite, symmetric).
-    C: Damping matrix - Damping and Coriolis forces.
-    K: Elastic matrix - Elastic en centrifugal forces.
-    F: External forces, non-square matrix.
-    states: String of the position state variables.
-    inputs: String of the input variables.
-    xdot: State_space representation
-    sys: simupy object 'DynamicalSystem'
+    A class that defines SystemBase object using an Euler-Lagrange formulation:
+        M(x).x'' + C(x, x').x' + K(x)= F(u)
+    Here, x represents a minimal state:
+        [x_1, x_2, ...]
+    the apostrophe represents a time derivative, and u is the input vector:
+        [u_1, u_2, ...]
+    A SystemBase object uses a state equation function of the form:
+        x' = f(x, u)
+    However, as system contains second time derivatives of the state, an extended state x* is necessary containing the minimized states and its first time derivatives:
+        x* = [x_1, x_1', x_2, x_2', ...]
+    which makes it possible to adhere to the SystemBase formulation:
+        x*' = f(x*, u)
+
+    Parameters:
+    -----------
+        states : string or array-like
+            if `states` is a string, it is a comma-separated listing of the state names. If `states` is array-like it contains the states as sympy's dynamic symbols.
+        inputs : string or array-like
+            if `inputs` is a string, it is a comma-separated listing of the input names. If `inputs` is array-like it contains the inputs as sympy's dynamic symbols.
+        sys : simupy's DynamicalSystem object (simupy.systems.symbolic), optional
+            the object containing output and state equations, default: None.
+
+    Attributes:
+    -----------
+        M : inertia_matrix
+            Inertia forces (positive definite, symmetric).
+        C : damping_matrix
+            Damping and Coriolis forces.
+        K : elastic_matrix
+            Elastic en centrifugal forces.
+        F : force_vector
+            force or torque vector, non-square matrix.
+        states : sympy array of dynamicsymbols
+            state variables.
+        dstates : sympy array of dynamicsymbols
+            first time derivatives of state variables
+        inputs : sympy array of dynamicsymbols
+            input variables.
+        sys : system
+            a simupy object 'DynamicalSystem'
+                states : the extended states
+                inputs : see above
+                state_equation : of the extended states (see create_state_equation())
+                output_equations: the extended states
+
+    Examples:
+    ---------
+        * Create a EulerLagrange object with two states and two inputs:
+            >>> states = 'x1, x2'
+            >>> inputs = 'u1, u2'
+            >>> sys = EulerLagrange(states, inputs)
+            >>> x1, x2, dx1, dx2, u1, u2, du1, du2 = sys.create_variables(input_diffs=True)
+            >>> M = [[1, x1*x2],
+                [x1*x2, 1]]
+            >>> C = [[2*dx1, 1 + x1],
+                [x2 - 2, 3*dx2]]
+            >>> K = [x1, 2*x2]
+            >>> F = [u1, 0]
+            >>> sys.define_system(M, C, K, F)
+
+        * Get the Euler-Lagrange matrices and the state equations:
+            >>> M = sys.inertia_matrix
+            >>> C = sys.damping_matrix 
+            >>> K = sys.elastic_matrix
+            >>> F = sys.force_vector
+            >>> xdot = sys.state_equation
+
+        * Linearize an Euler-Lagrange system around the state's working point [0, 0, 0, 0] and the input's working point = [0, 0] and simulate for a step input and initial conditions
+            >>> sys_lin, _ = sys.linearize([0, 0, 0, 0], [0, 0])
+            >>> from nlcontrol.signals import step
+            >>> step_sgnl = step(2)
+            >>> init_cond = [1, 2, 0.5, 4]
+            >>> sys_lin.simulation(5, initial_conditions=init_cond, input_signals=step_sgnl, plot=True)
     """
 
 
     def __init__(self, states, inputs, sys=None):
-        """
-        The underactuated mechanical systems class uses four matrices to describe the equations of motion. An underactuated system is described with the following differential equation: 
-            M(q).q'' + C(q, q').q' + K(q)= F(u)
-
-        Parameters:
-            states [str]: Position state variables. The variables are separated by ','.
-            inputs [str]: input variables. The variables are separated by ','.
-        """
         minimal_states, extended_states = self.__extend_states__(states)
         self.minimal_states = self.__process_init_input__(minimal_states)
         super().__init__(extended_states, inputs, sys=sys)
@@ -101,8 +155,8 @@ class EulerLagrange(SystemBase):
     def define_system(self, M, C, K, F):
         """
         Define the Euler-Lagrange system using the differential equation representation:
-            M(q).q'' + C(q, q').q' + K(q)= F(q).u 
-        Here, q is the minimal state vector created in the constructor. The state-space model is generated in the form r' = f(q, q', u), with r = [state[0], dstate[0], state[1], dstate[1], ..., state[n], dstate[n]], the extended state vector.
+            M(x).x'' + C(x, x').x' + K(x)= F(u)
+        Here, x is the minimal state vector created in the constructor. The state-space model is generated in the form x*' = f(x*, u), with x* = [x_1, dx_1, x_2, dx_2, ...], the extended state vector.
 
         HINT: use create_variables() for an easy notation of state[i] and dstate[i].
 
@@ -187,17 +241,16 @@ class EulerLagrange(SystemBase):
                 all variables of the system.
 
         Examples:
+        ---------
             * Return the variables of `sys', which has two states and two inputs and add a system to the EulerLagrange object:
-            >>> from sympy.tensor.array import Array
-            >>> from simupy.systems.symbolic import DynamicalSystem
-            >>> x1, x2, x1dot, x2dot, u1, u2, u1dot, u2dot = sys.create_variables(input_diffs=True)
-            >>> M = [[1, x1*x2],
+                >>> x1, x2, x1dot, x2dot, u1, u2, u1dot, u2dot = sys.create_variables(input_diffs=True)
+                >>> M = [[1, x1*x2],
                     [x1*x2, 1]]
-            >>> C = [[2*x1dot, 1 + x1],
+                >>> C = [[2*x1dot, 1 + x1],
                     [x2 - 2, 3*x2dot]]
-            >>> K = [x1, 2*x2]
-            >>> F = [u1, 0]
-            >>> sys.define_system(M, C, K, F)
+                >>> K = [x1, 2*x2]
+                >>> F = [u1, 0]
+                >>> sys.define_system(M, C, K, F)
         """
         return super().create_variables(states=self.minimal_states)
 
@@ -206,10 +259,14 @@ class EulerLagrange(SystemBase):
         """Check if matrix is symmetric. Returns a bool.
         
         Parameter:
-            matrix [sympy matrix]: a matrix that needs to be checked.
+        ----------
+            matrix : sympy matrix
+                a matrix that needs to be checked.
 
         Returns:
-            value [bool]: the matrix being symmetric.
+        --------
+            value : bool
+                the matrix being symmetric or not.
         """
         matrix_shape = matrix.shape
         el_sym = []
@@ -222,15 +279,24 @@ class EulerLagrange(SystemBase):
             print('Error: matrix is not squared.')
             return False
 
+
     def create_state_equations(self):
-        """Create a state space form of the system.
+        """
+        As the system contains a second derivative of the states, an extended state should be used, which contains the first derivative of the states as well. Therefore, the state equation has to be adapted to this new state vector.
+
+        Returns:
+        --------
+            result : sympy array object
+                the state equation for each element in self.states
         """
         minimal_dstates = Matrix(self.states[1::2])
         dstates = Matrix(self.dstates[0::2])
         substitution = dict(zip(dstates, minimal_dstates))
-        print(substitution)
+
         M_inv = self.inertia_matrix.inv()
-        states_dotdot = M_inv * self.force_vector - M_inv * self.damping_matrix * minimal_dstates - M_inv * self.elastic_matrix
+        states_dotdot = M_inv * self.force_vector \
+            - M_inv * self.damping_matrix * minimal_dstates \
+            - M_inv * self.elastic_matrix
         states_dot = []
         for i in range(len(self.states)):
             if i%2 == 0:

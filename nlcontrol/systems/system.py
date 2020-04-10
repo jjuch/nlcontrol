@@ -48,30 +48,32 @@ class SystemBase():
     Examples:
     ---------
         * Statefull system with one state, one input, and one output:
-        >>> from simupy.systems.symbolic import MemorylessSystem, DynamicalSystem
-        >>> from sympy.tensor.array import Array
-        >>> states = 'x'
-        >>> inputs = 'u'
-        >>> sys = SystemBase(states, inputs)
-        >>> x, xdot, u = sys.create_variables()
-        >>> sys.system = DynamicalSystem(state_equation=Array([-x1 + u1]), state=x1, output_equation=x1, input_=u1)
+            >>> from simupy.systems.symbolic import MemorylessSystem, DynamicalSystem
+            >>> from sympy.tensor.array import Array
+            >>> states = 'x'
+            >>> inputs = 'u'
+            >>> sys = SystemBase(states, inputs)
+            >>> x, xdot, u = sys.create_variables()
+            >>> sys.system = DynamicalSystem(state_equation=Array([-x1 + u1]), state=x1, output_equation=x1, input_=u1)
 
         * Statefull system with two states, one input, and two outputs:
-        >>> states = 'x1, x2'
-        >>> inputs = 'u'
-        >>> sys = SystemBase(states, inputs)
-        >>> x1, x2, x1dot, x2dot, u = sys.create_variables()
-        >>> sys.system = DynamicalSystem(state_equation=Array([-x1 + x2**2 + u, -x2 + 0.5 * x1]), state=Array([x1, x2]), output_equation=Array([x1 * x2, x2]), input_=u)
+            >>> states = 'x1, x2'
+            >>> inputs = 'u'
+            >>> sys = SystemBase(states, inputs)
+            >>> x1, x2, x1dot, x2dot, u = sys.create_variables()
+            >>> sys.system = DynamicalSystem(state_equation=Array([-x1 + x2**2 + u, -x2 + 0.5 * x1]), state=Array([x1, x2]), output_equation=Array([x1 * x2, x2]), input_=u)
 
         * Stateless system with one input:
-        >>> states = None
-        >>> inputs = 'w'
-        >>> sys = SystemBase(states, inputs)
-        >>> w = sys.create_variables()
-        >>> sys.system = MemorylessSystem(input_=Array([w]), output_equation= Array([5 * w]))
+            >>> states = None
+            >>> inputs = 'w'
+            >>> sys = SystemBase(states, inputs)
+            >>> w = sys.create_variables()
+            >>> sys.system = MemorylessSystem(input_=Array([w]), output_equation= Array([5 * w]))
 
-        * Create a copy a SystemBase object `sys':
-        >>> new_sys = SystemBase(sys.states, sys.inputs, sys.system)
+        * Create a copy a SystemBase object `sys' and linearize around the working point of state [0, 0] and working point of input 0 and simulate:
+            >>> new_sys = SystemBase(sys.states, sys.inputs, sys.system)
+            >>> new_sys_lin = new_sys.linearize([0, 0], 0)
+            >>> new_sys_lin.simulation(10)
 
     """
     def __init__(self, states, inputs, sys=None):
@@ -196,7 +198,7 @@ class SystemBase():
         ---------
             * Print the state equation of the linearized system of `sys' around the state's working point x[1] = 1 and x[2] = 5 and the input's working point u = 2:
             >>> sys_lin, sys_control = sys.linearize([1, 5], 2)
-            >>> print('Linearized state equation: ', sys_lin.system.state_equation)
+            >>> print('Linearized state equation: ', sys_lin.state_equation)
             
 
         """
@@ -229,15 +231,13 @@ class SystemBase():
 
                 if working_point_inputs is not None:
                     for l in range(len(self.inputs)):
-                        linearized_term += msubs(diff(nl_expr[k], self.inputs[l]), substitutions_inputs) * (self.inputs[l] - substitutions_inputs[self.inputs[l]])
+                        linearized_term += msubs(diff(nl_expr[k], self.inputs[l]), substitutions_states) * (self.inputs[l] - substitutions_states[self.inputs[l]])
                 linearized_term += msubs(nl_expr[k], substitutions_states)
                 linearized_expr.append(linearized_term)
             return Array(linearized_expr)
 
         state_equation_linearized = create_linear_equation(self.system.state_equation)
         output_equation_linearized = create_linear_equation(self.system.output_equation)
-        print(state_equation_linearized)
-        print(output_equation_linearized)
         system_dyn = DynamicalSystem(state_equation=state_equation_linearized, state=self.states, input_=self.inputs, output_equation=output_equation_linearized)
         system = SystemBase(states=self.states, inputs=self.inputs, sys=system_dyn)
         
