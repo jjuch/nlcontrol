@@ -1,4 +1,4 @@
-from nlcontrol.signals import step, sinusoid, append, add
+from nlcontrol.signals import step, sinusoid, append, add, impulse
 
 # Step
 step().simulation(5, plot=False)
@@ -13,8 +13,15 @@ sinusoid().simulation(5, plot=False)
 sinusoid(3).simulation(5, plot=False)
 sinusoid(2, [0.5, 1]).simulation(5, plot=False)
 sinusoid(amplitude=2).simulation(5, plot=False)
-sinusoid(amplitude=[1, 2]).simulation(5, plot=True)
+sinusoid(amplitude=[1, 2]).simulation(5, plot=False)
 sinusoid(amplitude=[0.5, 1.5, 2.5], frequency=[0.1, 0.5, 0.7], phase_shift=[1.5, 2.5, 3.5], y_shift=[0.3, -0.5, 0]).simulation(5, plot=False)
+
+# Impulse
+impulse().simulation(5, plot=False)
+impulse(3).simulation(5, plot=False)
+impulse(2, [0.5, 1]).simulation(5, plot=False)
+impulse(amplitude=2).simulation(5, plot=False)
+impulse(amplitude=[0.5, 1.5, 2.5], impulse_time=[1.5, 2.5, 3.5]).simulation(5, number_of_samples=10000, plot=True)
 
 # Append
 sin = sinusoid(amplitude=2.3, frequency=1.5, phase_shift=-0.3)
@@ -25,4 +32,4 @@ append(step1, sin, step2).simulation(5, plot=False)
 # Add
 sin = sinusoid(2)
 step3 = step(step_times=[1.5, 3.5])
-add(sin, step3).simulation(5, plot=True)
+add(sin, step3).simulation(5, plot=False)

@@ -6,7 +6,7 @@ from sympy import diff, Symbol
 from simupy.systems.symbolic import MemorylessSystem
 
 class Controller(EulerLagrange):
-    def __init__(self, states:str, inputs: str):
+    def __init__(self, states, inputs):
         super().__init__(states, inputs)
         self._ksi0 = None
         self._psi0 = None

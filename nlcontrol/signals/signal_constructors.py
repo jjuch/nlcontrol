@@ -1,6 +1,10 @@
 import nlcontrol.systems as nlSystems
+
 from simupy.systems import SystemFromCallable
+
 from sympy.tensor.array import Array
+from sympy import Symbol
+
 import numpy as np
 
 def step(dim=None, step_times=None, begin_values=None, end_values=None):
@@ -122,7 +126,7 @@ def sinusoid(dim=None, amplitude=None, frequency=None, phase_shift=None, y_shift
         >>> sinusoid_signal = sinusoid(amplitude=[2, 5]) 
         
         * 2-channel sinusoids [sin(2.pi.t + 3) + 2, sin(2.pi.2.t + 2.5) - 1]:
-        >>> step_signal = step(frequency=[1, 2], phase_shift=[3, 2.5], y_shift=[2, -1])
+        >>> sinusoid_signal = sinusoid(frequency=[1, 2], phase_shift=[3, 2.5], y_shift=[2, -1])
     """
     def _check_inputs(dim_arg, **kwargs):
         dims = [0 if value is None else 1 if np.isscalar(value) else len(value) for key, value in kwargs.items()]
@@ -162,6 +166,86 @@ def sinusoid(dim=None, amplitude=None, frequency=None, phase_shift=None, y_shift
 
     def callable(t, *args):
         return np.array([A * np.sin(2*np.pi*f*t + phi) + y for A, f, phi, y in zip(amplitude, frequency, phase_shift, y_shift)])
+    
+    system = SystemFromCallable(callable, 0, dim)
+    return nlSystems.SystemBase(states=None, inputs=None, sys=system)
+
+
+def impulse(dim=None, amplitude=None, impulse_time=None, eps=10**(-2)):
+    """
+    Creates a BaseSystem class object with a semi-impulse signal:
+        u(t) = A    if abs(t - ts) < eps
+             = 0    elsewhere 
+    with A amplitude, ts the impulse time, and eps a small number.
+    The signal can consist of multiple channels. This makes it possible to connect the impulse system to a system with multiple inputs. Without any arguments a one-channel impulse with amplitude 1 triggered at 0s is returned. By adding a dimension (int) N an N-channel impulse with amplitude 1, triggered at 0s is returned. The keyword arguments allow the creation of more customization: 'amplitude' defines the amplitude of the impulses, 'impulse_time' defines when the impulse is triggered, and eps defines how narrow the semi-impulse should be. The keyword arguments 'amplitude' and 'impulse_time' need to have the same dimension and are defined as lists or as an int. Each keyword is optional and left blank defaults to amplitude 1, and impulse time 0s.
+
+    Parameters:
+    -----------
+        dim : int, optional
+            the number of channels, default: 1
+        amplitude : list or int, optional
+            amplitude of impulses, default: 1.
+        impulse_time : list or int, optional
+            the times the impulse is triggered in seconds, default: 0.
+        eps : float, optional
+            the narrowness of the semi-impulse, default: 10^(-2).
+
+    Returns:
+    --------
+        A SystemBase object with parameters:
+            states : NoneType
+                None
+            inputs : NoneType
+                None
+            sys : SystemFromCallable object 
+                with a function 'callable' returning a numpy array in function of time t, 0 inputs, and dim outputs.
+
+    Examples:
+    ---------
+        * 1-channel default impulse:
+        >>> impulse_signal = impulse()
+
+        * 2-channel default impulse:
+        >>> impulse_signal = impulse(2) 
+
+        * 2-channel impulse with amplitude 2 and 5 repectively:
+        >>> impulse_signal = impulse(amplitude=[2, 5]) 
+        
+        * plot a 2-channel impulse with default amplitudes, triggered at 2s and 3.5s respectively, and a band of 3 * 10^(-4):
+        >>> impulse_signal = impulse(impulse_time=[2, 3.5], eps=1.5*10**(-4))
+        >>> impulse_signal.simulation(5, number_of_samples=10000, plot=True)
+    """
+    def _check_inputs(dim_arg, **kwargs):
+        dims = [0 if value is None else 1 if np.isscalar(value) else len(value) for key, value in kwargs.items()]
+        if dim_arg is not None:
+            dims.append(dim_arg)
+        else:
+            dims.append(0)
+        dims_filter = list(filter(lambda x: x != 0, dims))
+        if not all(dims_filter[0] == item for item in dims_filter):
+            error_text = '[signals.impulse] the inputs have different dimensions.'
+            raise ValueError(error_text)
+
+        #defaults
+        dim = dim = 1 if len(dims_filter) == 0 else dims_filter[0]
+        amplitude = dim * [1]
+        impulse_time = dim * [0]
+        if kwargs['amplitude'] is not None:
+            amplitude = [kwargs['amplitude']] if np.isscalar(kwargs['amplitude']) else kwargs['amplitude']
+            dim = len(amplitude)
+        if kwargs['impulse_time'] is not None:
+            impulse_time = [kwargs['impulse_time']] if np.isscalar(kwargs['impulse_time']) else kwargs['impulse_time']
+            dim = len(impulse_time)
+
+        return dim, amplitude, impulse_time
+    
+    dim, amplitude, impulse_time = \
+        _check_inputs(dim, amplitude=amplitude, \
+            impulse_time=impulse_time)
+    
+    def callable(t, *args): 
+        return np.array([A if abs(t - t_shift) < eps else 0  \
+            for A, t_shift in zip(amplitude, impulse_time)])
     
     system = SystemFromCallable(callable, 0, dim)
     return nlSystems.SystemBase(states=None, inputs=None, sys=system)
