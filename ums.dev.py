@@ -9,7 +9,7 @@ inputs = 'L1, L2'
 
 ums = UMS(states, inputs)
 
-x, theta, dx, dtheta, L1, L2 = ums.createVariables()
+x, theta, dx, dtheta, L1, L2 = ums.create_variables()
 
 e = 0.5
 M = [[1, e*cos(theta)], [e*cos(theta), 1]]
@@ -22,7 +22,7 @@ ums.define_system(M, C, K, F)
 
 states_contr = 'z'
 contr = Controller(states_contr, states)
-z, z_dot, w1, w2 , w1_dot, w2_dot = contr.createVariables(input_diffs=True)
+z, z_dot, w1, w2 , w1_dot, w2_dot = contr.create_variables(input_diffs=True)
 
 kp = 0.5
 kd = 2

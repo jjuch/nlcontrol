@@ -6,11 +6,13 @@ def append(*signals):
     """
     Append a N_i-channel signals to a sum(N_i, i)-channel signal. Add as many signals as needed. The order of appearance determines the index of the output.
 
-    Parameters :
+    Parameters:
+    -----------
         signals: nlcontrol.signals object
             the signals that need to be appended to a new signal.
     
-    Returns : 
+    Returns: 
+    --------
         A SystemBase object with parameters:
             states : NoneType
                 None
@@ -56,13 +58,15 @@ def add(signal1, signal2):
         y2 = [y2_1, y2_2, ..., y2_n]
         y = y1 + y2 = [y1_1 + y2_1, y1_2 + y2_2, ..., y1_n + y2_n]
 
-    Parameters :
+    Parameters:
+    -----------
         signal1: nlcontrol.signals object
             the first signal that will be added.
         signal2: nlcontrol.signals object
             the second signal that will be added.
     
-    Returns : 
+    Returns: 
+    --------
         A SystemBase object with parameters:
             states : NoneType
                 None

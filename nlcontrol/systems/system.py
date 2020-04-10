@@ -53,21 +53,21 @@ class SystemBase():
         >>> states = 'x'
         >>> inputs = 'u'
         >>> sys = SystemBase(states, inputs)
-        >>> x, xdot, u = sys.createVariables()
+        >>> x, xdot, u = sys.create_variables()
         >>> sys.system = DynamicalSystem(state_equation=Array([-x1 + u1]), state=x1, output_equation=x1, input_=u1)
 
         * Statefull system with two states, one input, and two outputs:
         >>> states = 'x1, x2'
         >>> inputs = 'u'
         >>> sys = SystemBase(states, inputs)
-        >>> x1, x2, x1dot, x2dot, u = sys.createVariables()
+        >>> x1, x2, x1dot, x2dot, u = sys.create_variables()
         >>> sys.system = DynamicalSystem(state_equation=Array([-x1 + x2**2 + u, -x2 + 0.5 * x1]), state=Array([x1, x2]), output_equation=Array([x1 * x2, x2]), input_=u)
 
         * Stateless system with one input:
         >>> states = None
         >>> inputs = 'w'
         >>> sys = SystemBase(states, inputs)
-        >>> w = sys.createVariables()
+        >>> w = sys.create_variables()
         >>> sys.system = MemorylessSystem(input_=Array([w]), output_equation= Array([5 * w]))
 
         * Create a copy a SystemBase object `sys':
@@ -83,7 +83,7 @@ class SystemBase():
 
     def __copy__(self):
         """
-        Create a deap copy of the SystemBase object.
+        Create a deep copy of the SystemBase object.
         """
         return deepcopy(self)
 
@@ -93,19 +93,29 @@ class SystemBase():
 
     @system.setter
     def system(self, system):
-        self.sys = system  
+        self.sys = system
+
+    @property
+    def state_equation(self):
+        if self.states is not None:
+            return self.system.state_equation
 
 
     def __process_init_input__(self, arg:str, level:int=0) -> Matrix:
-        '''Return the correct format of the processed __init__input. For a one-element input a different approach to create the parameter is needed.
+        """
+        Return the correct format of the processed __init__input. For a one-element input a different approach to create the parameter is needed.
 
         Parameters:
-            arg [str]: an __init__ input string that needs to be processed. The variables are separated by ','.
-            level [int]: Level of differentiation of the returned function.
+        -----------
+            arg : string
+                an __init__ input string that needs to be processed. The variables are separated by ','.
+            level : int
+                Level of differentiation of the returned function.
 
         Returns:
+        --------
             matrix [Matrix]: a Matrix of dynamic symbols given by arg. 
-        '''
+        """
         if arg is None:
             return None
         elif isinstance(arg, NDimArray):
@@ -117,7 +127,7 @@ class SystemBase():
                 return Array([dynamicsymbols(arg, level)])
 
 
-    def createVariables(self, input_diffs:bool=False) -> tuple:
+    def create_variables(self, input_diffs:bool=False, states=None) -> tuple:
         """
         Returns a tuple with all variables. First the states are given, next the derivative of the states, and finally the inputs, optionally followed by the diffs of the inputs. All variables are sympy dynamic symbols.
 
@@ -125,6 +135,8 @@ class SystemBase():
         -----------
             input_diffs : boolean
                 also return the differentiated versions of the inputs, default: false.
+            states : array-like
+                An alternative list of states, used by more complex system models, optional. (see e.g. EulerLagrange.create_variables)
 
         Returns:
         --------
@@ -135,19 +147,24 @@ class SystemBase():
             * Return the variables of `sys', which has two states and two inputs and add a system to the SytemBase object:
             >>> from sympy.tensor.array import Array
             >>> from simupy.systems.symbolic import DynamicalSystem
-            >>> x1, x2, x1dot, x2dot, u1, u2, u1dot, u2dot = sys.createVariables(input_diffs=True)
+            >>> x1, x2, x1dot, x2dot, u1, u2, u1dot, u2dot = sys.create_variables(input_diffs=True)
             >>> state_eq = Array([-5 * x1 + x2 + u1**2, x1/2 - x2**3 + u2])
             >>> output_eq = Array([x1 + x2])
             >>> sys.system = DynamicalSystem(input_=Array([u1, u2], state=Array([x1, x2], state_equation=state_eq, output_equation=output_eq)
         """
-        if self.states is None:
+        if states is None:
+            states = self.states
+            dstates = self.dstates
+        else:
+            dstates = [diff(state, Symbol('t')) for state in states]
+        if states is None:
             if len(tuple(self.inputs)) == 1:
                 return tuple(self.inputs)[0]
             else:
                 return tuple(self.inputs)
         else:
-            states_matrix = Matrix(self.states)
-            dstates_matrix = Matrix(self.dstates)
+            states_matrix = Matrix(states)
+            dstates_matrix = Matrix(dstates)
             inputs_matrix = Matrix(self.inputs)
             
             var_list_states = dstates_matrix.row_insert(0, states_matrix)

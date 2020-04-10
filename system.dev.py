@@ -11,7 +11,7 @@ import numpy as np
 states1 = 'x1'
 inputs1 = 'u1'
 sys1 = SystemBase(states1, inputs1)
-x1, x1dot, u1 = sys1.createVariables()
+x1, x1dot, u1 = sys1.create_variables()
 sys1.system = DynamicalSystem(state_equation=Array([-x1 + u1]), state=x1, output_equation=x1,  input_=u1)
 sys1_lin, _ = sys1.linearize(1)
 print('state_eq: ',sys1_lin.system.state_equation)
@@ -20,13 +20,13 @@ print('state_eq: ',sys1_lin.system.state_equation)
 states2 = None
 inputs2 = 'w'
 sys2 = SystemBase(states2, inputs2)
-w = sys2.createVariables()
+w = sys2.create_variables()
 sys2.sys = MemorylessSystem(input_=Array([w]), output_equation= Array([5 * w]))
 
 states3 = 'x2'
 inputs3 = 'u2'
 sys3 = SystemBase(states3, inputs3)
-x2, x2dot, u2, u2dot = sys3.createVariables(True)
+x2, x2dot, u2, u2dot = sys3.create_variables(True)
 sys3.system = DynamicalSystem(state_equation=Array([-x2**2 - u2**2]), state=Array([x2]), output_equation=Array([x2]),  input_=u2)
 sys3_lin, _ = sys3.linearize(1,2)
 print('state_eq: ',sys3_lin.system.state_equation)
@@ -34,7 +34,8 @@ print('state_eq: ',sys3_lin.system.state_equation)
 states4 = 'x3, x4'
 inputs4 = 'u3'
 sys4 = SystemBase(states4, inputs4)
-x3, x4, x3dot, x4dot, u3 = sys4.createVariables()
+print('Vars: ', sys4.create_variables())
+x3, x4, x3dot, x4dot, u3 = sys4.create_variables()
 sys4.system = DynamicalSystem(state_equation=Array([-x3 + x4 + u3, -x4 + 0.5 * x3]), state=Array([x3, x4]), output_equation=Array([x3 * x4, x4]), input_=u3)
 sys4_lin, _ = sys4.linearize([2, 1], 1)
 print('state_eq: ', sys4_lin.system.state_equation)
@@ -42,7 +43,7 @@ print('state_eq: ', sys4_lin.system.state_equation)
 states5 = 'x5'
 inputs5 = 'u4, u5'
 sys5 = SystemBase(states5, inputs5)
-x5, x5dot, u4, u5 = sys5.createVariables()
+x5, x5dot, u4, u5 = sys5.create_variables()
 sys5.system = DynamicalSystem(state_equation=Array([-x5 + u4 - u5]), state=Array([x5]), output_equation=Array([x5]), input_=Array([u4, u5]))
 
 

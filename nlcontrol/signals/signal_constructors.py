@@ -172,10 +172,12 @@ def empty_signal(dim):
     Creates a BaseSystem class object with a zero signal. The signal can consist of multiple channels. This makes it possible to connect a zero input to a system if needed.
 
     Parameters:
+    -----------
         dim: int
             The number of channels.
 
     Returns:
+    --------
         A SystemBase object with parameters:
             states : NoneType
                 None

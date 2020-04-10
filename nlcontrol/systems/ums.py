@@ -45,7 +45,7 @@ class UMS(EulerLagrange):
             M(q).q'' + C(q, q').q' + K(q)= F(q).u 
         Here, q is the state vector created in the constructor. A state-space model is generated in the form r' = f(q, q', u), with r = [state[0], dstate[0], state[1], dstate[1], ..., state[n], dstate[n]].
 
-        HINT: use createVariables() for an easy notation of state[i] and dstate[i].
+        HINT: use create_variables() for an easy notation of state[i] and dstate[i].
 
         Parameters:
             M [list]: Inertia matrix, the matrix is positive definite symmetric. Size: n x n
