@@ -1,0 +1,6 @@
+1. simupy.systes.symbolic.DynamicalSystem
+    Why? allow input variables in output_equation
+    
+    def output_equation(self, output_equation):
+        [line 151]: assert find_dynamicsymbols(output_equation) <= set(self.state)
+            -> assert find_dynamicsymbols(output_equation) <= set(self.state) or set(self.input)
