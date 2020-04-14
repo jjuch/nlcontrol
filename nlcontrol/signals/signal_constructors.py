@@ -214,6 +214,8 @@ def impulse(dim=None, amplitude=None, impulse_time=None, eps=10**(-2)):
         * plot a 2-channel impulse with default amplitudes, triggered at 2s and 3.5s respectively, and a band of 3 * 10^(-4):
         >>> impulse_signal = impulse(impulse_time=[2, 3.5], eps=1.5*10**(-4))
         >>> impulse_signal.simulation(5, number_of_samples=10000, plot=True)
+
+    #TODO: check out events for more elegant solution
     """
     def _check_inputs(dim_arg, **kwargs):
         dims = [0 if value is None else 1 if np.isscalar(value) else len(value) for key, value in kwargs.items()]
@@ -246,6 +248,7 @@ def impulse(dim=None, amplitude=None, impulse_time=None, eps=10**(-2)):
     def callable(t, *args): 
         return np.array([A if abs(t - t_shift) < eps else 0  \
             for A, t_shift in zip(amplitude, impulse_time)])
+    
     
     system = SystemFromCallable(callable, 0, dim)
     return nlSystems.SystemBase(states=None, inputs=None, sys=system)

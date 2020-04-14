@@ -412,13 +412,13 @@ class SystemBase():
         ---------
             * A simulation of 20 seconds of the statefull system `sys' for a set of initial conditions [x0_0, x1_0, x2_0] and plot the results:
             >>> init_cond = [0.3, 5.7, 2]
-            >>> t, x, y, res = sys.simulation(20, initial_conditions=init_cond)
+            >>> t, x, y, u, res = sys.simulation(20, initial_conditions=init_cond)
 
             * A simulation from second 2 to 18 of the statefull system `sys' for an input signal, which is a step from 0.4 to 1.3 at second 5 for input 1 and from 0.9 to 1.1 at second 7. Use 1000 nsteps for the integrator. No plot is required:
             >>> from nlcontrol.signals import step
             >>> step_signal = step(step_times=[5, 7], begin_values=[0.4, 0.9], end_values=[1.3, 11])
             >>> integrator_options = {'nsteps': 1000}
-            >>> t, x, y, res = sys.simulation([2, 18], input_signals=step_signal, custom_integrator_options=integrator_options)
+            >>> t, x, y, u, res = sys.simulation([2, 18], input_signals=step_signal, custom_integrator_options=integrator_options)
 
             * Plot the stateless signal step from previous example for a custom time axis (a time axis going from 3 seconds to 20 seconds with 1000 equidistant samples in between):
             >>> import numpy as np
