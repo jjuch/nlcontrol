@@ -2,6 +2,7 @@ import nlcontrol.signals as sgnls
 
 from copy import deepcopy, copy
 import warnings
+import types
 
 from sympy.physics.mechanics import dynamicsymbols
 from sympy.matrices import Matrix
@@ -83,6 +84,34 @@ class SystemBase():
         self.sys = sys
 
 
+    def __str__(self):
+        if callable(self.output_equation):
+            try:
+                output_equation = str(self.output_equation(Symbol('t')))
+            except:
+                output_equation = "callable(t)"
+        else:
+            output_equation = str(self.output_equation)
+
+        if len(output_equation) > 50:
+            output_equation = "\n\t\t\t{}\n".format(str(output_equation).replace(",", ",\n\t\t\t"))
+        
+        if self.state_equation is not None and (len(str(self.state_equation)) > 50):
+            state_equation = "\n\t\t\t{}\n".format(str(self.state_equation).replace(",", ",\n\t\t\t"))
+        else:
+            state_equation = str(self.state_equation)
+
+
+        return """
+        SystemBase object:
+        ==================
+        Inputs: {}\n
+        States: {}\n
+        System: 
+        \tState eq.: {}
+        \tOutput eq.: {}
+        """.format(self.inputs, self.states, state_equation, output_equation)
+
     def __copy__(self):
         """
         Create a deep copy of the SystemBase object.
@@ -101,6 +130,13 @@ class SystemBase():
     def state_equation(self):
         if self.states is not None:
             return self.system.state_equation
+
+    @property
+    def output_equation(self):
+        if hasattr(self.system, 'output_equation'):
+            return self.system.output_equation
+        elif hasattr(self.system, 'output_equation_function'):
+            return self.system.output_equation_function
 
 
     def __process_init_input__(self, arg:str, level:int=0) -> Matrix:
