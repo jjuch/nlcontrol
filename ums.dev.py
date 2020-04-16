@@ -1,13 +1,16 @@
-from systems import UMS, Controller
-from closedloop.feedback import ClosedLoop
+from nlcontrol.systems import EulerLagrange, PID, SystemBase
+from nlcontrol.closedloop.feedback import ClosedLoop
+from nlcontrol.closedloop.blocks import gain_block
+from nlcontrol.signals import step
 
 from sympy import cos, sin, eye
 import numpy as np
+from simupy.block_diagram import BlockDiagram
 
 states = 'x, theta'
 inputs = 'L1, L2'
 
-ums = UMS(states, inputs)
+ums = EulerLagrange(states, inputs)
 
 x, theta, dx, dtheta, L1, L2 = ums.create_variables()
 
@@ -18,20 +21,22 @@ K = [[x],[0]]
 F = [[L1], [L2]]
 
 ums.define_system(M, C, K, F)
-# ums.simulate_system([1, 0, np.pi/4, 0], 40, show=False)
+# ums.simulation(40, initial_conditions=[1, 0, np.pi/4, 0], plot=True)
 
-states_contr = 'z'
-contr = Controller(states_contr, states)
-z, z_dot, w1, w2 , w1_dot, w2_dot = contr.create_variables(input_diffs=True)
+kp = 1
+kd = 5
+ksi0 = [0, kp * theta]
+psi0 = [0, kd * dtheta]
+contr = PID(ksi0, None, psi0, inputs=ums.minimal_states)
+print(contr.P_action)
+print(contr.I_action)
+print(contr.D_action)
+print(contr.system.output_equation)
+# neg = gain_block(-1, 2)
+# # neg = SystemBase(None, 'l1 l2', sys=neg)
+# print(neg.gain_matrix, " * ", contr.system.output_equation)
 
-kp = 0.5
-kd = 2
-# ksi0 = [kp * w1, kp * w2]
-# psi0 = [kd * w1_dot, kd * w2_dot]
-ksi0 = [0, kp * w2]
-psi0 = [0, kd * w2_dot]
-contr.define_linear_part(ksi0, psi0)
-print(np.reshape(eye(2), (2,2)))
+# print(neg.output_equation_function(0, [5,5]))
 
-CL = ClosedLoop(ums.sys, contr.sys)
+CL = ClosedLoop(ums.system, contr.system)
 CL.simulate([1, 0 , np.pi/4, 0], 100)

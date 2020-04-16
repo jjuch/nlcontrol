@@ -43,7 +43,7 @@ class SystemBase():
             if `states` is a string, it is a comma-separated listing of the state names. If `states` is array-like it contains the states as sympy's dynamic symbols.
         inputs : string or array-like
             if `inputs` is a string, it is a comma-separated listing of the input names. If `inputs` is array-like it contains the inputs as sympy's dynamic symbols.
-        sys : simupy's DynamicalSystem object (simupy.systems.symbolic), optional
+        system : simupy's DynamicalSystem object (simupy.systems.symbolic), optional
             the object containing output and state equations, default: None.
 
     Examples:
@@ -111,6 +111,7 @@ class SystemBase():
         \tState eq.: {}
         \tOutput eq.: {}
         """.format(self.inputs, self.states, state_equation, output_equation)
+        
 
     def __copy__(self):
         """
@@ -145,8 +146,8 @@ class SystemBase():
 
         Parameters:
         -----------
-            arg : string
-                an __init__ input string that needs to be processed. The variables are separated by ','.
+            arg : string or array-like
+                an __init__ input string that needs to be processed. The variables are separated by ','. Or an NDimArray object, which is returned without any adaptations.
             level : int
                 Level of differentiation of the returned function.
 
@@ -196,10 +197,19 @@ class SystemBase():
         else:
             dstates = [diff(state, Symbol('t')) for state in states]
         if states is None:
-            if len(tuple(self.inputs)) == 1:
-                return tuple(self.inputs)[0]
+            # if len(tuple(self.inputs)) == 1:
+                
+            #     return tuple(self.inputs)[0]
+            # else:
+            #     return tuple(self.inputs)
+            inputs_matrix = Matrix(self.inputs)
+            if input_diffs:
+                input_diff_list = Matrix([diff(input_el, Symbol('t')) for input_el in inputs_matrix])
+                var_list = input_diff_list.row_insert(0, inputs_matrix)
             else:
-                return tuple(self.inputs)
+                var_list = inputs_matrix
+            return tuple(var_list)
+                
         else:
             states_matrix = Matrix(states)
             dstates_matrix = Matrix(dstates)

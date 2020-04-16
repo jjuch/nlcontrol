@@ -9,10 +9,8 @@ Classes:
         SystemBase : The base definitions of each system object.
     * eula : 
         EulerLagrange : An Euler-Lagrange notation of a system.
-    * ums :
-        UMS : An underactuated mechanical system formulation based on EulerLagrange.
     * controller : 
-        Controller: An Euler-lagrange based controller.
+        PID: A nonlinear PID controller formulation.
 
 Functions:
     * utils:
@@ -23,6 +21,5 @@ Functions:
 
 from .system import SystemBase
 from .eula import EulerLagrange
-from .ums import UMS
-from .controller import Controller
+from .controller import PID
 from .utils import write_simulation_result_to_csv, read_simulation_result_from_csv
