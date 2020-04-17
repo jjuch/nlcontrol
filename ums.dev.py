@@ -28,15 +28,8 @@ kd = 5
 ksi0 = [0, kp * theta]
 psi0 = [0, kd * dtheta]
 contr = PID(ksi0, None, psi0, inputs=ums.minimal_states)
-print(contr.P_action)
-print(contr.I_action)
-print(contr.D_action)
-print(contr.system.output_equation)
-# neg = gain_block(-1, 2)
-# # neg = SystemBase(None, 'l1 l2', sys=neg)
-# print(neg.gain_matrix, " * ", contr.system.output_equation)
+print(contr)
 
-# print(neg.output_equation_function(0, [5,5]))
 
 CL = ClosedLoop(ums.system, contr.system)
 CL.simulate([1, 0 , np.pi/4, 0], 100)

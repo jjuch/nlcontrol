@@ -51,7 +51,7 @@ class EulerLagrange(SystemBase):
             first time derivatives of state variables
         inputs : sympy array of dynamicsymbols
             input variables.
-        sys : system
+        system : 
             a simupy object 'DynamicalSystem'
                 states : the extended states
                 inputs : see above
@@ -97,7 +97,37 @@ class EulerLagrange(SystemBase):
         self._C = None
         self._K = None
         self._F = None
-        
+    
+    
+    def __str__(self):
+        return """
+        EulerLagrange object:
+        =====================
+        M(x).x'' + C(x, x').x' + K(x)= F(u)\n
+        \twith:
+        \t\tx: {}
+        \t\tM: {}
+        \t\tC: {}
+        \t\tK: {}
+        \t\tF: {}
+        """.format(self.minimal_states, \
+                self.__matrix_to_str__(self.inertia_matrix), \
+                self.__matrix_to_str__(self.damping_matrix), \
+                self.__matrix_to_str__(self.elastic_matrix), \
+                self.__matrix_to_str__(self.force_vector))
+    
+    def __matrix_to_str__(self, matrix):
+        """
+        Convert sympy's matrix object 
+            Matrix([[a, Derivative(b, t)], [c, d]])
+        to the string
+            '''
+            [[a,            Derivative(b, t)],
+            [c          d]]
+            '''
+        which can be used in the EulerLagrange __str__ method.
+        """
+        return str(matrix).replace("Matrix(", "").replace("]])", "]]").replace("],", "],\n\t\t\t\t").replace(", ", ", \t\t\t").replace(", \t\t\tt)", ", t)")
 
     @property
     def inertia_matrix(self) -> Matrix:
@@ -156,7 +186,7 @@ class EulerLagrange(SystemBase):
         """
         Define the Euler-Lagrange system using the differential equation representation:
             M(x).x'' + C(x, x').x' + K(x)= F(u)
-        Here, x is the minimal state vector created in the constructor. The state-space model is generated in the form x*' = f(x*, u), with x* = [x_1, dx_1, x_2, dx_2, ...], the extended state vector.
+        Here, x is the minimal state vector created in the constructor. The state-space model is generated in the form x*' = f(x*, u), with x* = [x_1, dx_1, x_2, dx_2, ...], the extended state vector. The output is the minimal state vector
 
         HINT: use create_variables() for an easy notation of state[i] and dstate[i].
 
@@ -170,6 +200,7 @@ class EulerLagrange(SystemBase):
                 Elastic matrix. Size: n x 1
             F : array-like
                 External forces or torque inputs, non-square matrix. Size: n x 1
+            #TODO: add custom output vector
 
         Examples:
         ---------

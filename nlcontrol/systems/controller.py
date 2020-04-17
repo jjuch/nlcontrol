@@ -80,6 +80,14 @@ class PID(SystemBase):
             self.define_PID(*args, None, None)
             
 
+    def __str__(self):
+        return """
+        PID object:
+        ===========
+        P: {}
+        I: {}
+        D: {}
+        """.format(self.P_action, self.I_action, self.D_action)
     
     def __create_inputs__(self):
         """
@@ -171,16 +179,16 @@ class PID(SystemBase):
         elif self.I_action is None:
             # PD-controller
             inputs = [val for pair in zip(self.inputs, self.dinputs) for val in pair]
-            print(inputs)
             output_equation = Array([sum(x) for x in zip(self.P_action, self.D_action)])
         elif self.D_action is None:
             # PI-controller
-            inputs = self.inputs
+            inputs = [val for pair in zip(self.inputs, self.iinputs) for val in pair]
             output_equation = Array([sum(x) for x in zip(self.P_action, self.I_action)])
         else:
             # PID-controller
-            inputs = [val for pair in zip(self.inputs, self.dinputs) for val in pair]
+            inputs = [val for pair in zip(self.inputs, self.iinputs, self.dinputs) for val in pair]
             output_equation = Array([sum(x) for x in zip(self.P_action, self.I_action, self.D_action)])
+        print(inputs)
         self.system = MemorylessSystem(input_=inputs, output_equation=output_equation)
 
     
