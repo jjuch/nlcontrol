@@ -204,6 +204,7 @@ class EulerLagrange(SystemBase):
 
         Examples:
         ---------
+            #TODO
         """
         # Transform to sympy matrices and store to
         M_mat = Matrix(M)

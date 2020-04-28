@@ -1,18 +1,14 @@
-from nlcontrol.systems import SystemBase 
+from nlcontrol.systems.controllers import ControllerBase
 
-from sympy.matrices import Matrix
 from sympy.tensor.array import Array
-from sympy import diff, Symbol, integrate
 from simupy.systems.symbolic import MemorylessSystem
 
-import numpy as np
-
-class PID(SystemBase):
+class PID(ControllerBase):
     """
     PID(inputs=w)
     PID(ksi0, chi0, psi0, inputs=inputs)
 
-    A nonlinear PID controller can be created using the PID class. This class is based on the SystemBase object. The nonlinear PID is is based on the input vector w(t), containing sympy's dynamicsymbols. The formulation is the following:
+    A nonlinear PID controller can be created using the PID class. This class is based on the ControllerBase object. The nonlinear PID is is based on the input vector w(t), containing sympy's dynamicsymbols. The formulation is the following:
         u(t) = ksi0(w(t)) + chi0(int(w(t),t)) + psi0(w'(t))
     with .'(t) indicating the time derivative of the signal. The class object allows the construction of P, PI, PD and PID controllers, by setting chi0 or psi0 to None. The system is based on a MemorylessSystem object from simupy.
 
@@ -58,13 +54,10 @@ class PID(SystemBase):
 
     """
     def __init__(self, *args, **kwargs):
-        if 'inputs' in kwargs.keys():
-            inputs = kwargs['inputs']
-        else:
+        if 'inputs' not in kwargs.keys():
             error_text = "[nlcontrol.systems.PID] An 'inputs=' keyword is necessary."
             raise AssertionError(error_text)
-        super().__init__(None, inputs)
-        self.dinputs, self.iinputs = self.__create_inputs__()
+        super().__init__(*args, **kwargs)
 
         self._ksi0 = None # potential energy shaper
         self._psi0 = None # damping injection
@@ -88,22 +81,7 @@ class PID(SystemBase):
         I: {}
         D: {}
         """.format(self.P_action, self.I_action, self.D_action)
-    
-    def __create_inputs__(self):
-        """
-        Create lists of differentiated and integrated symbols of the input vector.
 
-        Returns:
-        --------
-            variables : tuple 
-                inputs_diff : MDimArray
-                    a list of differentiated input symbols.
-                inputs_int : MDimArray
-                    a list of integrated input symbols.
-        """
-        inputs_diff = [diff(input_el, Symbol('t')) for input_el in self.inputs]
-        inputs_int = [integrate(input_el, Symbol('t')) for input_el in self.inputs]
-        return inputs_diff, inputs_int
 
     @property
     def P_action(self):
@@ -188,7 +166,4 @@ class PID(SystemBase):
             # PID-controller
             inputs = [val for pair in zip(self.inputs, self.iinputs, self.dinputs) for val in pair]
             output_equation = Array([sum(x) for x in zip(self.P_action, self.I_action, self.D_action)])
-        print(inputs)
         self.system = MemorylessSystem(input_=inputs, output_equation=output_equation)
-
-    

@@ -9,8 +9,10 @@ Classes:
         SystemBase : The base definitions of each system object.
     * eula : 
         EulerLagrange : An Euler-Lagrange notation of a system.
-    * controller : 
-        PID: A nonlinear PID controller formulation.
+    * controllers : 
+        ControllerBase : The base definition of any type of controller, based on SystemBase object.
+        DynamicController : A general dynamic controller definition.
+        PID : A nonlinear PID controller.
 
 Functions:
     * utils:
@@ -21,5 +23,5 @@ Functions:
 
 from .system import SystemBase
 from .eula import EulerLagrange
-from .controller import PID
+from .controllers import *
 from .utils import write_simulation_result_to_csv, read_simulation_result_from_csv
