@@ -21,7 +21,11 @@ class ControllerBase(SystemBase):
             states = kwargs['states']
         else:
             states = None
-        super().__init__(states, inputs)
+        if 'sys' in kwargs.keys():
+            sys = kwargs['sys']
+        else:
+            sys = None
+        super().__init__(states, inputs, sys=sys)
         self.dinputs, self.iinputs = self.__create_inputs__()
 
     
@@ -41,6 +45,11 @@ class ControllerBase(SystemBase):
         inputs_int = [integrate(input_el, Symbol('t')) for input_el in self.inputs]
         return inputs_diff, inputs_int
 
+    
+    def parallel(self, sys_append):
+        parallel_system = super().parallel(sys_append)
+        return ControllerBase(inputs=parallel_system.inputs, states=parallel_system.states, sys=parallel_system.system)
+
 
 
 class DynamicController(ControllerBase):
@@ -52,7 +61,10 @@ class DynamicController(ControllerBase):
             error_text = "[nlcontrol.systems.DynamicController] A 'states=' keyword is necessary."
             raise AssertionError(error_text)
         super().__init__(*args, **kwargs)
-
+        
+        self.minimal_inputs = self.inputs
+        self.inputs = Array([val for pair in zip(self.inputs, self.dinputs) for val in pair])
+        
         self._A = None
         self._B = None
         self._C = None
@@ -147,17 +159,16 @@ class DynamicController(ControllerBase):
 
 
         if Matrix(eta).shape[0] == dim_states and Matrix(eta).shape[1] == 1:
-            # Check whether the expressions only contain inputs and derivatives of the input
+            # Check whether the expressions only contain inputs
             dynamic_symbols_eta = [return_dynamic_symbols(eta_el) for eta_el in list(itertools.chain(*eta))]
-            dynamic_symbols_eta = list(set.union(*dynamic_symbols_eta))
+            dynamic_symbols_eta = set.union(*dynamic_symbols_eta)
 
-            inputs_list = list(self.inputs.copy())
-            inputs_list.extend(self.dinputs)
-
-            if False not in set(el in inputs_list for el in dynamic_symbols_eta):
+            if dynamic_symbols_eta <= (
+                set(self.inputs)
+            ):
                 self.eta = Matrix(eta)
             else:
-                error_text = '[nlcontrol.systems.DynamicController] Vector eta cannot contain other dynamic symbols than the inputs and its derivatives.'
+                error_text = '[nlcontrol.systems.DynamicController] Vector eta cannot contain other dynamic symbols than the inputs.'
                 raise AssertionError(error_text) 
         else:
             error_text = '[nlcontrol.systems.DynamicController] Vector eta has an equal amount of columns as there are states. Eta has only one row.'
@@ -165,12 +176,11 @@ class DynamicController(ControllerBase):
 
         # Check whether the expressions only contain inputs and derivatives of the input
         dynamic_symbols_phi = [return_dynamic_symbols(phi_el) for phi_el in list(itertools.chain(*phi))]
-        dynamic_symbols_phi = list(set.union(*dynamic_symbols_phi))
+        dynamic_symbols_phi = set.union(*dynamic_symbols_phi)
 
-        states_list = list(self.states.copy())
-        states_list.extend(self.dstates)
-
-        if False not in set(el in states_list for el in dynamic_symbols_phi):
+        if dynamic_symbols_phi <= (
+            set(self.states) | set(self.dstates)
+        ):
             self.phi = Matrix(phi)
         else:
             error_text = '[nlcontrol.systems.DynamicController] Vector phi cannot contain other dynamic symbols than the states and its derivatives.'
@@ -178,7 +188,7 @@ class DynamicController(ControllerBase):
 
         state_equation = Array(self.A * Matrix(self.states) + self.B * self.f + self.eta)
         output_equation = Array(self.phi)
-        self.system = DynamicalSystem(state_equation=state_equation, output_equation=output_equation, state=self.states, input_=inputs_list)
+        self.system = DynamicalSystem(state_equation=state_equation, output_equation=output_equation, state=self.states, input_=self.inputs)
 
 
     def controllability(self, A, B):
