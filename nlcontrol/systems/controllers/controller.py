@@ -3,7 +3,8 @@ from nlcontrol.systems import SystemBase
 from sympy.matrices import Matrix
 from sympy.tensor.array import Array
 from sympy import diff, Symbol, integrate
-from sympy.physics.mechanics import find_dynamicsymbols
+from sympy.physics.mechanics import find_dynamicsymbols, msubs
+from sympy.core.function import Derivative
 
 from simupy.systems.symbolic import DynamicalSystem
 
@@ -188,6 +189,12 @@ class DynamicController(ControllerBase):
 
         state_equation = Array(self.A * Matrix(self.states) + self.B * self.f + self.eta)
         output_equation = Array(self.phi)
+        diff_states = []
+        for state in self.states:
+            diff_states.append(Derivative(state, Symbol('t')))
+        substitutions = dict(zip(diff_states, state_equation))
+        # print('Subs: ', substitutions)
+        output_equation = msubs(output_equation, substitutions)
         self.system = DynamicalSystem(state_equation=state_equation, output_equation=output_equation, state=self.states, input_=self.inputs)
 
 

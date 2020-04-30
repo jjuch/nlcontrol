@@ -380,8 +380,11 @@ class SystemBase():
                 >>> print('State eq's: ', parallel_sys.system.state_equation)
                 >>> print('Output eq's: ', parallel_sys.system.output_equation)
         """
-        print(self.sys.dim_input, " - ", sys_append.sys.dim_input)
-        print('inputs: ', sys_append.sys.input)
+        # print(self.sys.dim_input, " - ", sys_append.sys.dim_input)
+        # print('inputs: ', sys_append.sys.input)
+        
+        # print(self.sys.dim_output, " - ", sys_append.sys.dim_output)
+        # print('outputs: ', sys_append.sys.output_equation)
         if (self.sys.dim_input != sys_append.sys.dim_input):
             error_text = '[SystemBase.parallel] Dimension of the input of the first system is not equal to the dimension of the input of the second system.'
             raise ValueError(error_text)

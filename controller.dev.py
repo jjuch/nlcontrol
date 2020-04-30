@@ -1,8 +1,11 @@
 from nlcontrol.systems import DynamicController, PID
 import numpy as np
-from sympy.physics.mechanics import dynamicsymbols
+
 from sympy import Symbol, diff
 from sympy.tensor.array import Array
+from sympy.core.function import Derivative
+from sympy.physics.mechanics import dynamicsymbols
+from sympy.physics.mechanics import msubs
 
 
 dynsys = DynamicController(inputs='w1', states='z1, z2')
@@ -26,7 +29,7 @@ eta = [[w1 + dw1], [(w1 + dw1)**2]]
 phi = [[z1],  [z2]]
 
 dynsys.define_controller(A, B, C, f, eta, phi)
-print(dynsys)
+# print(dynsys)
 
 kp = 2.567979797979798
 kd = 0.9212822069176614
@@ -35,4 +38,26 @@ psi0 = [kd * dw1, 0]
 pid = PID(ksi0, None, psi0, inputs=Array([w1]))
 
 contr = dynsys.parallel(pid)
-print(contr)
+# print(contr)
+
+print(" START TESTING ")
+tuple_with_derivatives = tuple(contr.system.input)
+old_expr = tuple_with_derivatives
+old_symb = []
+new_symb = []
+new_args = []
+subs = []
+i = 0
+for el in tuple_with_derivatives:
+    if isinstance(el, Derivative):
+        old_symb.append(el)
+        new_symbol = dynamicsymbols('diff_{}'.format(i))
+        new_symb.append(new_symbol)
+        new_args.append(new_symbol)
+        i += 1
+    else:
+        new_args.append(el)
+substitutions = dict(zip(old_symb, new_symb))
+print(substitutions)
+print(tuple(new_args))
+# new_expr = msubs(old_expr, substitutions)

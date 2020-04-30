@@ -60,29 +60,49 @@ class ClosedLoop():
         return BD
 
 
-    def simulate(self, initial_conditions, tspan):
+    def simulate(self, initial_conditions, tspan, custom_integrator_options=None):
         # negative_feedback = gain_block(-1, 2)
         # BD = BlockDiagram(self.system, negative_feedback, self.controller)
         # BD.connect(self.system, self.controller)
         # BD.connect(self.controller, negative_feedback)
         # BD.connect(negative_feedback, self.system)
+        if custom_integrator_options is not None:
+            integrator_options = {
+                'name': custom_integrator_options['name'] if 'name' in custom_integrator_options else 'dopri5',
+                'rtol': custom_integrator_options['rtol'] if 'rtol' in custom_integrator_options else 1e-6,
+                'atol': custom_integrator_options['atol'] if 'atol' in custom_integrator_options else 1e-12,
+                'nsteps': custom_integrator_options['nsteps'] if 'nsteps' in custom_integrator_options else 500,
+                'max_step': custom_integrator_options['max_step'] if 'max_step' in custom_integrator_options else 0.0
+            }
+        else:
+            integrator_options = {
+                'name': 'dopri5',
+                'rtol': 1e-6,
+                'atol': 1e-12,
+                'nsteps': 500,
+                'max_step': 0.0
+            }
+
         BD = self.createBlockDiagram()
         self.system.initial_condition = initial_conditions
-        res = BD.simulate(tspan)
+        res = BD.simulate(tspan, integrator_options=integrator_options)
         # attrs = vars(res)
         # print(', '.join("%s: %s" % item for item in attrs.items()))
         x = res.x[:, 0]
         theta = res.x[:, 2]
+    
 
-        plt.figure()
-        ObjectLines = plt.plot(res.t, x, res.t, theta)
-        plt.legend(iter(ObjectLines), [el for el in tuple(self.system.state)])
-        plt.title('states versus time')
-        plt.xlabel('time (s)')
-        plt.show()
+        # plt.figure()
+        # ObjectLines = plt.plot(res.t, x, res.t, theta)
+        # plt.legend(iter(ObjectLines), [el for el in tuple(self.system.state)])
+        # plt.title('states versus time')
+        # plt.xlabel('time (s)')
+        # plt.show()
 
-        # error_sign = [-theta - 5*dtheta for theta, dtheta in zip(res.x[:, 2], res.x[:,3])]
+        # # error_sign = [-theta - 5*dtheta for theta, dtheta in zip(res.x[:, 2], res.x[:,3])]
         plt.figure()
         ObjectLines = plt.plot(res.t, res.y[:,0],res.t, res.y[:,1],res.t, res.y[:,2],res.t, res.y[:,3],res.t, res.y[:,4],res.t, res.y[:,5],res.t, res.y[:,6],res.t, res.y[:,7])
         plt.legend(iter(ObjectLines), ['x', 'dx', 'theta', 'dtheta', 'u1', 'u2', 'u3', 'u4'])
         plt.show()
+
+        return res.t, x, theta
