@@ -140,6 +140,16 @@ class SystemBase():
             return self.system.output_equation_function
 
 
+    @property
+    def block_configuration(self):
+        sys = self.system
+        print("""
+        Inputs: {}
+        States: {}
+        Outputs: {}
+        """.format(sys.dim_input, sys.dim_state, sys.dim_output))
+
+
     def __process_init_input__(self, arg:str, level:int=0) -> Matrix:
         """
         Return the correct format of the processed __init__input. For a one-element input a different approach to create the parameter is needed.
