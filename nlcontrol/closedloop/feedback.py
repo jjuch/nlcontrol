@@ -36,9 +36,10 @@ class ClosedLoop():
 
         if (len(forward_systems) is not 0):
             for forward_system in forward_systems:
-                BD.add_system(forward_system)
-                output_endidx_process += forward_system.dim_output
-                state_endidx_process += forward_system.dim_state
+                forward_sys = forward_system.system
+                BD.add_system(forward_sys)
+                output_endidx_process += forward_sys.dim_output
+                state_endidx_process += forward_sys.dim_state
         output_endidx_process += 1
         state_endidx_process += 1
 
@@ -48,34 +49,35 @@ class ClosedLoop():
         state_endidx_controller = state_startidx_controller
 
         if (len(backward_systems) is not 0):
-            negative_feedback = gain_block(-1, backward_systems[-1].dim_output)
+            negative_feedback = gain_block(-1, backward_systems[-1].system.dim_output)
             BD.add_system(negative_feedback)
             output_startidx_controller += negative_feedback.dim_output
             output_endidx_controller = output_startidx_controller
             for backward_system in backward_systems:
-                BD.add_system(backward_system)
-                output_endidx_controller += backward_system.dim_output
-                state_endidx_controller += backward_system.dim_state
+                backward_sys = backward_system.system
+                BD.add_system(backward_sys)
+                output_endidx_controller += backward_sys.dim_output
+                state_endidx_controller += backward_sys.dim_state
         else:
-            negative_feedback = gain_block(-1, forward_systems[-1].dim_output)
+            negative_feedback = gain_block(-1, forward_systems[-1].system.dim_output)
             BD.add_system(negative_feedback)
 
         for i in range(len(forward_systems)):
             if (i == len(forward_systems) - 1):
-                BD.connect(forward_systems[i], backward_systems[0])
+                BD.connect(forward_systems[i].system, backward_systems[0].system)
             else:
-                BD.connect(forward_systems[i], forward_systems[i + 1])
+                BD.connect(forward_systems[i].system, forward_systems[i + 1].system)
         if (len(backward_systems) == 0):
             BD.add_system(negative_feedback)
-            BD.connect(forward_systems[-1], negative_feedback)
-            BD.connect(negative_feedback, forward_systems[0])
+            BD.connect(forward_systems[-1].system, negative_feedback)
+            BD.connect(negative_feedback, forward_systems[0].system)
         else:
             for j in range(len(backward_systems)):
                 if (j == len(backward_systems) - 1):
-                    BD.connect(backward_systems[j], negative_feedback)
-                    BD.connect(negative_feedback, forward_systems[0])
+                    BD.connect(backward_systems[j].system, negative_feedback)
+                    BD.connect(negative_feedback, forward_systems[0].system)
                 else:
-                    BD.connect(backward_systems[j], backward_systems[j + 1])
+                    BD.connect(backward_systems[j].system, backward_systems[j + 1].system)
         
         indices = {
             'process': {
@@ -115,7 +117,7 @@ class ClosedLoop():
             }
 
         BD, indices = self.createBlockDiagram()
-        self.system.initial_condition = initial_conditions
+        self.system.system.initial_condition = initial_conditions
         res = BD.simulate(tspan, integrator_options=integrator_options)
         
         # Unpack indices
