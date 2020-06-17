@@ -2,6 +2,7 @@ import nlcontrol.signals as sgnls
 
 from copy import deepcopy, copy
 import warnings
+import types
 
 from sympy.physics.mechanics import dynamicsymbols
 from sympy.matrices import Matrix
@@ -42,7 +43,7 @@ class SystemBase():
             if `states` is a string, it is a comma-separated listing of the state names. If `states` is array-like it contains the states as sympy's dynamic symbols.
         inputs : string or array-like
             if `inputs` is a string, it is a comma-separated listing of the input names. If `inputs` is array-like it contains the inputs as sympy's dynamic symbols.
-        sys : simupy's DynamicalSystem object (simupy.systems.symbolic), optional
+        system : simupy's DynamicalSystem object (simupy.systems.symbolic), optional
             the object containing output and state equations, default: None.
 
     Examples:
@@ -83,6 +84,35 @@ class SystemBase():
         self.sys = sys
 
 
+    def __str__(self):
+        if callable(self.output_equation):
+            try:
+                output_equation = str(self.output_equation(Symbol('t')))
+            except:
+                output_equation = "callable(t)"
+        else:
+            output_equation = str(self.output_equation)
+
+        if len(output_equation) > 50:
+            output_equation = "\n\t\t\t{}\n".format(str(output_equation).replace(",", ",\n\t\t\t"))
+        
+        if self.state_equation is not None and (len(str(self.state_equation)) > 50):
+            state_equation = "\n\t\t\t{}\n".format(str(self.state_equation).replace(",", ",\n\t\t\t"))
+        else:
+            state_equation = str(self.state_equation)
+
+
+        return """
+        SystemBase object:
+        ==================
+        Inputs: {}\n
+        States: {}\n
+        System: 
+        \tState eq.: {}
+        \tOutput eq.: {}
+        """.format(self.inputs, self.states, state_equation, output_equation)
+        
+
     def __copy__(self):
         """
         Create a deep copy of the SystemBase object.
@@ -102,6 +132,23 @@ class SystemBase():
         if self.states is not None:
             return self.system.state_equation
 
+    @property
+    def output_equation(self):
+        if hasattr(self.system, 'output_equation'):
+            return self.system.output_equation
+        elif hasattr(self.system, 'output_equation_function'):
+            return self.system.output_equation_function
+
+
+    @property
+    def block_configuration(self):
+        sys = self.system
+        print("""
+        Inputs: {}
+        States: {}
+        Outputs: {}
+        """.format(sys.dim_input, sys.dim_state, sys.dim_output))
+
 
     def __process_init_input__(self, arg:str, level:int=0) -> Matrix:
         """
@@ -109,8 +156,8 @@ class SystemBase():
 
         Parameters:
         -----------
-            arg : string
-                an __init__ input string that needs to be processed. The variables are separated by ','.
+            arg : string or array-like
+                an __init__ input string that needs to be processed. The variables are separated by ','. Or an NDimArray object, which is returned without any adaptations.
             level : int
                 Level of differentiation of the returned function.
 
@@ -160,10 +207,19 @@ class SystemBase():
         else:
             dstates = [diff(state, Symbol('t')) for state in states]
         if states is None:
-            if len(tuple(self.inputs)) == 1:
-                return tuple(self.inputs)[0]
+            # if len(tuple(self.inputs)) == 1:
+                
+            #     return tuple(self.inputs)[0]
+            # else:
+            #     return tuple(self.inputs)
+            inputs_matrix = Matrix(self.inputs)
+            if input_diffs:
+                input_diff_list = Matrix([diff(input_el, Symbol('t')) for input_el in inputs_matrix])
+                var_list = input_diff_list.row_insert(0, inputs_matrix)
             else:
-                return tuple(self.inputs)
+                var_list = inputs_matrix
+            return tuple(var_list) if len(var_list) > 1 else var_list
+                
         else:
             states_matrix = Matrix(states)
             dstates_matrix = Matrix(dstates)
@@ -174,7 +230,7 @@ class SystemBase():
             if input_diffs:
                 input_diff_list = Matrix([diff(input_el, Symbol('t')) for input_el in inputs_matrix])
                 var_list = input_diff_list.row_insert(0, var_list)
-            return tuple(var_list)
+            return tuple(var_list) if len(var_list) > 1 else var_list
 
     
     def linearize(self, working_point_states, working_point_inputs=None):
@@ -334,6 +390,11 @@ class SystemBase():
                 >>> print('State eq's: ', parallel_sys.system.state_equation)
                 >>> print('Output eq's: ', parallel_sys.system.output_equation)
         """
+        # print(self.sys.dim_input, " - ", sys_append.sys.dim_input)
+        # print('inputs: ', sys_append.sys.input)
+        
+        # print(self.sys.dim_output, " - ", sys_append.sys.dim_output)
+        # print('outputs: ', sys_append.sys.output_equation)
         if (self.sys.dim_input != sys_append.sys.dim_input):
             error_text = '[SystemBase.parallel] Dimension of the input of the first system is not equal to the dimension of the input of the second system.'
             raise ValueError(error_text)
@@ -412,13 +473,13 @@ class SystemBase():
         ---------
             * A simulation of 20 seconds of the statefull system `sys' for a set of initial conditions [x0_0, x1_0, x2_0] and plot the results:
             >>> init_cond = [0.3, 5.7, 2]
-            >>> t, x, y, res = sys.simulation(20, initial_conditions=init_cond)
+            >>> t, x, y, u, res = sys.simulation(20, initial_conditions=init_cond)
 
             * A simulation from second 2 to 18 of the statefull system `sys' for an input signal, which is a step from 0.4 to 1.3 at second 5 for input 1 and from 0.9 to 1.1 at second 7. Use 1000 nsteps for the integrator. No plot is required:
             >>> from nlcontrol.signals import step
             >>> step_signal = step(step_times=[5, 7], begin_values=[0.4, 0.9], end_values=[1.3, 11])
             >>> integrator_options = {'nsteps': 1000}
-            >>> t, x, y, res = sys.simulation([2, 18], input_signals=step_signal, custom_integrator_options=integrator_options)
+            >>> t, x, y, u, res = sys.simulation([2, 18], input_signals=step_signal, custom_integrator_options=integrator_options)
 
             * Plot the stateless signal step from previous example for a custom time axis (a time axis going from 3 seconds to 20 seconds with 1000 equidistant samples in between):
             >>> import numpy as np

@@ -1,0 +1,5 @@
+# Include README
+include *.md
+
+# Include license text 
+include LICENSE

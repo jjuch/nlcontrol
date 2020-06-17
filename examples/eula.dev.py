@@ -16,6 +16,7 @@ K = [x1, 2*x2]
 F = [u1 , 0]
 
 EL1.define_system(M, C, K, F)
+print(EL1)
 print("diff(", EL1.states, ") = ", EL1.state_equation)
 
 EL1_lin,_ = EL1.linearize([0, 0, 0, 0], [0, 0])
@@ -28,9 +29,7 @@ C1 = EL1.damping_matrix
 K1 = EL1.elastic_matrix
 F1 = EL1.force_vector
 xdot = EL1.state_equation
-print(M1, " .x'' + ", C1, " .x' + ", K1, " = ", F1)
-print("x*' = ", xdot)
 
 EL2 = EulerLagrange(EL1.states, EL1.inputs)
-print(EL2.states)
+print(EL2)
 print(EL2.minimal_states)
