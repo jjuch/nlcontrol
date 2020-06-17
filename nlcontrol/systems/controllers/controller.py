@@ -187,7 +187,7 @@ class DynamicController(ControllerBase):
             error_text = '[nlcontrol.systems.DynamicController] Vector phi cannot contain other dynamic symbols than the states and its derivatives.'
             raise AssertionError(error_text)
 
-        state_equation = Array(self.A * Matrix(self.states) + self.B * self.f + self.eta)
+        state_equation = Array(self.A * Matrix(self.states) - self.B * self.f + self.eta)
         output_equation = Array(self.phi)
         diff_states = []
         for state in self.states:
