@@ -21,7 +21,9 @@ states2 = None
 inputs2 = 'w'
 sys2 = SystemBase(states2, inputs2)
 w = sys2.create_variables()
-sys2.sys = MemorylessSystem(input_=Array([w]), output_equation= Array([5 * w]))
+output_eq = Array([5 * w])
+sys2.sys = MemorylessSystem(input_=Array([w]), output_equation=output_eq)
+print('output_eq: ', sys2.output_equation)
 
 states3 = 'x2'
 inputs3 = 'u2'
@@ -59,6 +61,8 @@ if mode is 'series':
     print(series_sys2.sys.output_equation)
     print(series_sys2, ' - ', series_sys2.sys)
 
+    sys2.block_configuration
+    sys1.block_configuration
     series_sys3 = sys2.series(sys1)
     print(series_sys3.sys.state_equation)
     print(series_sys3.sys.output_equation)

@@ -218,7 +218,7 @@ class SystemBase():
                 var_list = input_diff_list.row_insert(0, inputs_matrix)
             else:
                 var_list = inputs_matrix
-            return tuple(var_list)
+            return tuple(var_list) if len(var_list) > 1 else var_list
                 
         else:
             states_matrix = Matrix(states)
@@ -230,7 +230,7 @@ class SystemBase():
             if input_diffs:
                 input_diff_list = Matrix([diff(input_el, Symbol('t')) for input_el in inputs_matrix])
                 var_list = input_diff_list.row_insert(0, var_list)
-            return tuple(var_list)
+            return tuple(var_list) if len(var_list) > 1 else var_list
 
     
     def linearize(self, working_point_states, working_point_inputs=None):

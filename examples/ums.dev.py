@@ -31,5 +31,5 @@ contr = PID(ksi0, None, psi0, inputs=ums.minimal_states)
 print(contr)
 
 
-CL = ClosedLoop(ums.system, contr.system)
+CL = ClosedLoop(ums, contr)
 CL.simulate([1, 0 , np.pi/4, 0], 100)
