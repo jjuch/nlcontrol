@@ -8,10 +8,10 @@ import matplotlib.pyplot as plt
 
 
 class ClosedLoop():
-    def __init__(self, system=None, controller=None, lyapunov=None):
+    def __init__(self, system=None, controller=None, liapunov=None):
         self.system = system
         self.controller = controller
-        self.lyapunov = lyapunov
+        self.liapunov = liapunov
 
     def createBlockDiagram(self, forward_systems:list=None, backward_systems:list=None):
         if (forward_systems is None):
@@ -93,7 +93,6 @@ class ClosedLoop():
                     else [state_startidx_controller, state_endidx_controller]
             }
         }
-        print(indices)
         return BD, indices
 
 
@@ -118,8 +117,8 @@ class ClosedLoop():
         BD, indices = self.createBlockDiagram()
         self.system.initial_condition = initial_conditions
         res = BD.simulate(tspan, integrator_options=integrator_options)
-        # attrs = vars(res)
-        # print(', '.join("%s: %s" % item for item in attrs.items()))
+        
+        # Unpack indices
         y_p_idx = indices['process']['output']
         x_p_idx = indices['process']['state']
         y_c_idx = indices['controller']['output']
@@ -135,24 +134,10 @@ class ClosedLoop():
             else res.x[:, x_c_idx[0]] if len(x_c_idx) == 1\
             else res.x[:, slice(*x_c_idx)]
 
-        print(len(res.y[0]))
-        print(len(res.x[0]))
-    
-
-        # plt.figure()
-        # ObjectLines = plt.plot(res.t, x, res.t, theta)
-        # plt.legend(iter(ObjectLines), [el for el in tuple(self.system.state)])
-        # plt.title('states versus time')
-        # plt.xlabel('time (s)')
-        # plt.show()
-
-        # # error_sign = [-theta - 5*dtheta for theta, dtheta in zip(res.x[:, 2], res.x[:,3])]
     
         if plot:
             plt.figure()
             plt.subplot(1, 2, 1)
-            # ObjectLines1A = plt.plot(res.t, y_p, res.t, y_c)
-            # plt.legend(iter(ObjectLines1A), ['y' + str(index) for index in range(1, len(y_p[0]) + 1)] + ['u' + str(index) for index in range(1, len(y_c[0]) + 1)])
             ObjectLines1A = plt.plot(res.t, y_p)
             ObjectLines1B = plt.plot(res.t, y_c)
             plt.legend(iter(ObjectLines1A + ObjectLines1B), ['y' + str(index) for index in range(1, len(y_p[0]) + 1)] + ['u' + str(index) for index in range(1, len(y_c[0]) + 1)])
@@ -160,9 +145,13 @@ class ClosedLoop():
             plt.xlabel('time [s]')
 
             plt.subplot(1, 2, 2)
-            ObjectLines2A = plt.plot(res.t, x_p)
-            ObjectLines2B = plt.plot(res.t, x_c) #TODO: is states is None
-            plt.legend(iter(ObjectLines2A + ObjectLines2B), ['x' + str(index) for index in range(1, len(x_p[0]) + 1)] + ['z' + str(index) for index in range(1, len(y_c[0]) + 1)])
+            ObjectLines2A = []
+            ObjectLines2B = []
+            if x_p is not None:
+                ObjectLines2A = plt.plot(res.t, x_p)
+            if x_c is not None:
+                ObjectLines2B = plt.plot(res.t, x_c)
+            plt.legend(iter(ObjectLines2A + ObjectLines2B), ['x' + str(index) for index in ([] if x_p is None else range(1, len(x_p[0]) + 1))] + ['z' + str(index) for index in ([] if x_c is None else range(1, len(x_c[0]) + 1))])
             plt.title('States')
             plt.xlabel('time [s]')
             plt.show()
@@ -170,5 +159,5 @@ class ClosedLoop():
         return res.t, (x_p, y_p, x_c, y_c)
 
 
-    def lyapunov_function(self, initial_condition, tspan, custom_integrator_options=None):
+    def liapunov_function(self, callable, initial_condition, tspan, custom_integrator_options=None):
         pass
