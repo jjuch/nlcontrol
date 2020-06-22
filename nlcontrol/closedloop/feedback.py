@@ -8,10 +8,10 @@ import matplotlib.pyplot as plt
 
 
 class ClosedLoop():
-    def __init__(self, system=None, controller=None, liapunov=None):
+    def __init__(self, system=None, controller=None):
         self.system = system
         self.controller = controller
-        self.liapunov = liapunov
+
 
     def createBlockDiagram(self, forward_systems:list=None, backward_systems:list=None):
         if (forward_systems is None):
@@ -159,7 +159,3 @@ class ClosedLoop():
             plt.show()
 
         return res.t, (x_p, y_p, x_c, y_c)
-
-
-    def liapunov_function(self, callable, initial_condition, tspan, custom_integrator_options=None):
-        pass
