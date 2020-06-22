@@ -34,28 +34,28 @@ class ControllerBase(SystemBase):
         * Statefull controller with one state, one input, and one output:
             >>> from simupy.systems.symbolic import MemorylessSystem, DynamicalSystem
             >>> from sympy.tensor.array import Array
-            >>> states = 'z'
-            >>> inputs = 'w'
-            >>> contr = ControllerBase(states, inputs)
+            >>> st = 'z'
+            >>> inp = 'w'
+            >>> contr = ControllerBase(states=st, inputs=inp)
             >>> z, zdot, w = contr.create_variables()
             >>> contr.system = DynamicalSystem(state_equation=Array([-z + w]), state=z, output_equation=z, input_=w)
 
         * Statefull controller with two states, one input, and two outputs:
-            >>> states = 'z1, z2'
-            >>> inputs = 'w'
-            >>> contr = ControllerBase(states, inputs)
+            >>> st = 'z1, z2'
+            >>> inp = 'w'
+            >>> contr = ControllerBase(states=st, inputs=inp)
             >>> z1, z2, z1dot, z2dot, w = contr.create_variables()
             >>> contr.system = DynamicalSystem(state_equation=Array([-z1 + z2**2 + w, -z2 + 0.5 * z1]), state=Array([z1, z2]), output_equation=Array([z1 * z2, z2]), input_=w)
 
         * Stateless controller with one input:
-            >>> states = None
-            >>> inputs = 'w'
-            >>> contr = ControllerBase(states, inputs)
+            >>> st = None
+            >>> inp = 'w'
+            >>> contr = ControllerBase(states=st, inputs=inp)
             >>> w = contr.create_variables()
             >>> contr.system = MemorylessSystem(input_=Array([w]), output_equation= Array([5 * w]))
 
         * Create a copy a ControllerBase object `contr' and linearize around the working point of state [0, 0] and working point of input 0 and simulate:
-            >>> new_contr = ControllerBase(contr.states, contr.inputs, contr.system)
+            >>> new_contr = ControllerBase(states=contr.states, inputs=contr.inputs, sys=contr.system)
             >>> new_contr_lin = new_contr.linearize([0, 0], 0)
             >>> new_contr_lin.simulation(10)
     """
@@ -148,6 +148,50 @@ class ControllerBase(SystemBase):
 
 
 class DynamicController(ControllerBase):
+    """
+    DynamicController(states=None, inputs=None, sys=None)
+
+    The DynamicController object is based on the ControllerBase class. A dynamic controller is defined by the following differential equations:
+        diff(z(t), t) = A.z(t) - B.f(sigma(t)) + eta(w(t), diff(w(t),t))
+        sigma(t) = C'.z
+        u0 = phi(z(t), diff(z(t), t))
+    
+    with z(t) the state vector, w(t) the input vector and t the time in seconds. the symbol ' refers to the transpose. 
+    Conditions:
+        * A is Hurwitz,
+        * (A, B) should be controllable, 
+        * (A, C) is observable,
+        * rank(B) = rang (C) = s <= n, with s the dimension of sigma, and n the number of states. 
+
+    Parameters:
+    -----------
+        states : string or array-like
+            if `states` is a string, it is a comma-separated listing of the state names. If `states` is array-like it contains the states as sympy's dynamic symbols.
+        inputs : string or array-like
+            if `inputs` is a string, it is a comma-separated listing of the input names. If `inputs` is array-like it contains the inputs as sympy's dynamic symbols.
+        system : simupy's DynamicalSystem object (simupy.systems.symbolic), optional
+            the object containing output and state equations, default: None.
+
+    Examples:
+    ---------
+        * Statefull controller with two states, one input, and two outputs:
+            >>> inp = 'w'
+            >>> st = 'z1, z2'
+            >>> contr = DynamicController(states=st, inputs=inp)
+            >>> z1, z2, z1dot, z2dot, w, wdot = contr.create_variables()
+            >>> a0, a1, k1 = 12.87, 6.63, 0.45
+            >>> b0 = (48.65 - a1) * k1
+            >>> b1 = (11.79 - 1) * k1
+            >>> A = [[0, 1], [-a0, -a1]]
+            >>> B = [[0], [1]]
+            >>> C = [[b0], [b1]]
+            >>> f = lambda x: x**2
+            >>> eta = [[w + wdot], [(w + wdot)**2]]
+            >>> phi = [[z1], [z2dot]]
+            >>> contr.define_controller(A, B, C, f, eta, phi)
+            >>> print(contr)
+
+    """
     def __init__(self, *args, **kwargs):
         if 'inputs' not in kwargs.keys():
             error_text = "[nlcontrol.systems.DynamicController] An 'inputs=' keyword is necessary."
@@ -193,6 +237,40 @@ class DynamicController(ControllerBase):
 
     
     def define_controller(self, A, B, C, f, eta, phi):
+        """
+        Define the Dynamic controller given by the differential equations:
+            diff(z(t), t) = A.z(t) - B.f(sigma(t)) + eta(w(t), diff(w(t),t))
+            sigma(t) = C'.z
+            u0 = phi(z(t), diff(z(t), t))
+    
+        with z(t) the state vector, w(t) the input vector and t the time in seconds. the symbol ' refers to the transpose. 
+        Conditions:
+            * A is Hurwitz,
+            * (A, B) should be controllable, 
+            * (A, C) is observable,
+            * rank(B) = rang (C) = s <= n, with s the dimension of sigma, and n the number of states.
+
+        HINT: use create_variables() for an easy notation of the equations.
+
+        Parameters:
+        -----------
+            A : array-like
+                Hurwitz matrix. Size: n x n
+            B : array-like
+                In combination with matrix A, the controllability is checked. The linear definition can be used. Size: s x n
+            C : array-like
+                In combination with matrix A, the observability is checked. The linear definition can be used. Size: n x 1
+            f : callable (lambda-function)
+                A (non)linear lambda function with argument sigma, which equals C'.z.
+            eta : array-like
+                The (non)linear relation between the inputs plus its derivatives to the change in state. Size: n x 1
+            phi : array-like
+                The (non)linear output equation. The equations should only contain states and its derivatives. Size: n x 1
+
+        Examples:
+        ---------
+            See DyncamicController object.
+        """
         dim_states = self.states.shape[0]
 
         # Allow scalar inputs
@@ -293,6 +371,18 @@ class DynamicController(ControllerBase):
 
 
     def controllability_linear(self, A, B):
+        """
+        Controllability check of two matrices using the Kalman rank condition for time-invariant linear systems [1].
+
+        Parameters:
+        -----------
+            A : array-like
+                Size: n x n
+            B : array-like
+                Size: s x n
+
+        [1]. R.E. Kalman, "On the general theory of control systems", IFAC Proc., vol. 1(1), pp. 491-502, 1960. doi.10.1016/S1474-6670(17)70094-8.
+        """
         A = np.array(A)
         B = np.array(B)
         p = np.linalg.matrix_rank(A)
@@ -310,6 +400,18 @@ class DynamicController(ControllerBase):
         
 
     def observability_linear(self, A, C):
+        """
+        Observability check of two matrices using the Kalman rank condition for time-invariant linear systems [1].
+
+        Parameters:
+        -----------
+            A : array-like
+                Size: n x n
+            C : array-like
+                Size: n x 1
+
+        [1]. R.E. Kalman, "On the general theory of control systems", IFAC Proc., vol. 1(1), pp. 491-502, 1960. doi.10.1016/S1474-6670(17)70094-8.
+        """
         A = np.array(A)
         C = np.array(C).T
         p = np.linalg.matrix_rank(A)
@@ -327,6 +429,14 @@ class DynamicController(ControllerBase):
 
 
     def hurwitz(self, matrix):
+        """
+        Check whether a time-invariant matrix is Hurwitz. The real part of the eigenvalues should be smaller than zero.
+
+        Parameters:
+        -----------
+            matrix: array-like
+                A square matrix.
+        """
         matrix = np.array(matrix)
         eig,_ = np.linalg.eig(matrix)
         check_eig = [True if eig < 0  else False for eig in np.real(eig)]
