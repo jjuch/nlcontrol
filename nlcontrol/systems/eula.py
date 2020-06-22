@@ -140,7 +140,7 @@ class EulerLagrange(SystemBase):
                 self._M = matrix
             else:
                 error_text = "[EulerLagrange.inertia_matrix (setter)] The intertia matrix' dimension do not match the minimal state's dimension."
-                raise ValueError(error_text) 
+                raise ValueError(error_text)
         else:
             error_text = '[EulerLagrange.inertia_matrix (setter)] The intertia matrix should be symmetric.'
             raise ValueError(error_text)
@@ -204,7 +204,7 @@ class EulerLagrange(SystemBase):
 
         Examples:
         ---------
-            #TODO
+            See class object.
         """
         # Transform to sympy matrices and store to
         M_mat = Matrix(M)
