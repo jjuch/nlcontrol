@@ -264,7 +264,7 @@ class SystemBase():
         if np.isscalar(working_point_states):
             working_point_states = [working_point_states]
         if (len(working_point_states) != len(self.states)):
-            error_text = '[SystemBase.linearize] The working point should have the same size as the dimension of the states.'
+            error_text = '[SystemBase.linearize] The working point should have the same size as the dimension of the states. The dimension of the state is {}.'.format(len(self.states))
             raise ValueError(error_text)
 
         substitutions_states = dict(zip(self.states, working_point_states))
@@ -280,7 +280,8 @@ class SystemBase():
 
         def create_linear_equation(nl_expr):
             linearized_expr = []
-            for k in range(len(self.dstates)):
+            # for k in range(len(self.dstates)):
+            for k in range(len(nl_expr)):
                 linearized_term = 0
                 for j in range(len(self.states)):
                     linearized_term += msubs(diff(nl_expr[k], self.states[j]), substitutions_states) * (self.states[j] - substitutions_states[self.states[j]])
@@ -305,12 +306,12 @@ class SystemBase():
             for i in range(len(state_equations)):
                 col_A = [state_equations[i].coeff(state) for state in self.states]
                 A.append(col_A)
-                col_B = [state_equations[i].coeff(input_el) for input_el in self.inputs]
+                col_B = [state_equations[i].coeff(input_el) for input_el in self.inputs] if self.inputs is not None else [0]
                 B.append(col_B)
             for j in range(len(output_equations)):
                 col_C = [output_equations[j].coeff(state) for state in self.states]
                 C.append(col_C)
-                col_D = [output_equations[j].coeff(input_el) for input_el in self.inputs]
+                col_D = [output_equations[j].coeff(input_el) for input_el in self.inputs] if self.inputs is not None else [0]
                 D.append(col_D)
             return np.array(A), np.array(B), np.array(C), np.array(D)
 

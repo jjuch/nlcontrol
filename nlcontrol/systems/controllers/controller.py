@@ -168,7 +168,7 @@ class DynamicController(ControllerBase):
         states : string or array-like
             if `states` is a string, it is a comma-separated listing of the state names. If `states` is array-like it contains the states as sympy's dynamic symbols.
         inputs : string or array-like
-            if `inputs` is a string, it is a comma-separated listing of the input names. If `inputs` is array-like it contains the inputs as sympy's dynamic symbols.
+            if `inputs` is a string, it is a comma-separated listing of the input names. If `inputs` is array-like it contains the inputs as sympy's dynamic symbols. Do not provide the derivatives as these will be added automatically.
         system : simupy's DynamicalSystem object (simupy.systems.symbolic), optional
             the object containing output and state equations, default: None.
 

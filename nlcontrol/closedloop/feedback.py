@@ -1,7 +1,11 @@
 from simupy.block_diagram import BlockDiagram
+from simupy.systems.symbolic import DynamicalSystem
 from sympy.matrices import Matrix
+from sympy.physics.mechanics import msubs
+from sympy.tensor.array import Array
 
 from nlcontrol.closedloop.blocks import gain_block
+from nlcontrol.systems import SystemBase, ControllerBase
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -76,9 +80,128 @@ class ClosedLoop():
             >>> CL = ClosedLoop(sys, contr)
     """
     def __init__(self, system=None, controller=None):
-        self.system = system
+        self.system = None
         self.controller = controller
+        if (issubclass(type(system), SystemBase)) or (system is None):
+            self.system = system
+        else:
+            error_text = '[ClosedLoop] the system object should be of the type SystemBase.'
+            raise TypeError(error_text)
+        if (issubclass(type(controller), ControllerBase)) or (controller is None):
+            self.controller = controller
+        else:
+            error_text = '[ClosedLoop] the controller object should be of the type ControllerBase.'
+            raise TypeError(error_text)
         self.block_diagram, self.indices = self.create_block_diagram()
+        self.closed_loop_system = self.create_closed_loop_system()
+    
+    @property
+    def forward_system(self):
+        return self.system
+    
+    @forward_system.setter 
+    def forward_system(self, system):
+        if issubclass(type(system), SystemBase):
+            self.system = system
+            self.block_diagram, self.indices = self.create_block_diagram()
+            self.closed_loop_system = self.create_closed_loop_system()
+        else:
+            error_text = '[ClosedLoop.forward_system] the system object should be of the type SystemBase.'
+            raise TypeError(error_text)
+        
+
+    @property
+    def backward_system(self):
+        return self.controller
+    
+    @backward_system.setter 
+    def backward_system(self, controller):
+        if (issubclass(type(controller), ControllerBase)) or (controller is None):
+            self.controller = controller
+            self.block_diagram, self.indices = self.create_block_diagram()
+            self.closed_loop_system = self.create_closed_loop_system()
+        else:
+            error_text = '[ClosedLoop.backward_system] the controller object should be of the type ControllerBase.'
+            raise TypeError(error_text)
+        
+
+    def create_closed_loop_system(self):
+        '''
+        Create a SystemBase object of the closed-loop system.
+
+        Returns:
+        --------
+            system : SystemBase
+                A Systembase object of the closed-loop system.
+        '''
+        states, state_equations = self.__get_states__()
+        system_dyn = DynamicalSystem(state_equation=Array(state_equations), state=states, output_equation=self.system.output_equation)
+        return SystemBase(states=Array(states), inputs='r', sys=system_dyn)
+
+
+    def __get_states__(self):
+        '''
+        Contcatenate the states vector of the system and the controller.
+
+        Returns:
+        --------
+            states : list
+                first the states of the system and next the states of the controller.
+            state_equations : list
+                first the state equations of the system and next the state equations of the controller.
+        '''
+        states = []
+        state_equations = []
+        substitutions_system = dict(zip(self.system.inputs, (-1) * self.controller.output_equation))
+        if self.system is None:
+            if self.controller is None:
+                error_text = '[ClosedLoop.__get_states__] Both controller and system are None. One of them should at least contain a system.'
+                raise AssertionError(error_text)
+            else:
+                if self.controller.states is not None:
+                    states.extend(self.controller.states)
+                    state_equations.extend(self.controller.state_equation)
+        else:
+            substitutions_controller = dict()
+            if self.system.states is not None:
+                states.extend(self.system.states)
+                state_equations.extend([msubs(state_eq, substitutions_system)\
+                    for state_eq in self.system.state_equation])
+                
+                # Remove Derivative(., 't') from controller states
+                minimal_dstates = self.system.states[1::2]
+                dstates = self.system.dstates[0::2]
+                substitutions_controller = dict(zip(dstates, minimal_dstates))
+                 
+            if self.controller.states is not None:
+                states.extend(self.controller.states)
+                controller_state_eq = msubs(self.controller.state_equation, substitutions_controller)
+                state_equations.extend(controller_state_eq)     
+        return states, state_equations
+    
+
+    def linearize(self, working_point_states):
+        '''
+        In many cases a nonlinear closed-loop system is observed around a certain working point. In the state space close to this working point it is save to say that a linearized version of the nonlinear system is a sufficient approximation. The linearized model allows the user to use linear control techniques to examine the nonlinear system close to this working point. A first order Taylor expansion is used to obtain the linearized system. A working point for the states needs to be provided.
+
+        Parameters:
+        -----------
+            working_point_states : list or int
+                the state equations are linearized around the working point of the states.
+
+        Returns:
+        --------
+            sys_lin: SystemBase object 
+                with the same states and inputs as the original system. The state and output equation is linearized.
+            sys_control: control.StateSpace object
+
+        Examples:
+        ---------
+            * Print the state equation of the linearized closed-loop object of `CL' around the state's working point x[1] = 1 and x[2] = 5:
+            >>> CL_lin, CL_control = CL.linearize([1, 5])
+            >>> print('Linearized state equation: ', CL_lin.state_equation)
+        '''
+        return self.closed_loop_system.linearize(working_point_states)
 
 
     def create_block_diagram(self, forward_systems:list=None, backward_systems:list=None):
@@ -101,13 +224,13 @@ class ClosedLoop():
         """
         if (forward_systems is None):
             if (self.system is None):
-                error_text = "[ClosedLoop.create_block_diagram] Both the forward_systems argument and the ClosedLoop.system variable are empty. Please provide a forward_system.")
+                error_text = "[ClosedLoop.create_block_diagram] Both the forward_systems argument and the ClosedLoop.system variable are empty. Please provide a forward_system."
                 assert AssertionError(error_text)
             else:
                 forward_systems = [self.system]
         if (backward_systems is None):
             if (self.system is None):
-                error_text = "[ClosedLoop.create_block_diagram] Both the backward_systems argument and the ClosedLoop.controller variable are empty. Please provide a backward_system.")
+                error_text = "[ClosedLoop.create_block_diagram] Both the backward_systems argument and the ClosedLoop.controller variable are empty. Please provide a backward_system."
                 assert AssertionError(error_text)
             else:
                 backward_systems = [self.controller]
