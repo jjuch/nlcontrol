@@ -152,7 +152,7 @@ class ClosedLoop():
         '''
         states = []
         state_equations = []
-        substitutions_system = dict(zip(self.system.inputs, (-1) * self.controller.output_equation))
+        
         if self.system is None:
             if self.controller is None:
                 error_text = '[ClosedLoop.__get_states__] Both controller and system are None. One of them should at least contain a system.'
@@ -162,20 +162,24 @@ class ClosedLoop():
                     states.extend(self.controller.states)
                     state_equations.extend(self.controller.state_equation)
         else:
-            substitutions_controller = dict()
+            substitutions_derivatives = dict()
+            unprocessed_substitutions_system = zip(self.system.inputs, (-1) * self.controller.output_equation)
+
             if self.system.states is not None:
-                states.extend(self.system.states)
-                state_equations.extend([msubs(state_eq, substitutions_system)\
-                    for state_eq in self.system.state_equation])
-                
-                # Remove Derivative(., 't') from controller states
+                # Remove Derivative(., 't') from controller states and substitutions_system
                 minimal_dstates = self.system.states[1::2]
                 dstates = self.system.dstates[0::2]
-                substitutions_controller = dict(zip(dstates, minimal_dstates))
+                substitutions_derivatives = dict(zip(dstates, minimal_dstates))
+                substitutions_system = dict([(k, msubs(v, substitutions_derivatives))\
+                    for k, v in unprocessed_substitutions_system])
+
+                states.extend(self.system.states)
+                state_equations.extend([msubs(state_eq, substitutions_derivatives, substitutions_system)\
+                    for state_eq in self.system.state_equation])                
                  
             if self.controller.states is not None:
                 states.extend(self.controller.states)
-                controller_state_eq = msubs(self.controller.state_equation, substitutions_controller)
+                controller_state_eq = msubs(self.controller.state_equation, substitutions_derivatives)
                 state_equations.extend(controller_state_eq)     
         return states, state_equations
     

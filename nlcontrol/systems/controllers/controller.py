@@ -304,25 +304,32 @@ class DynamicController(ControllerBase):
         else:
             error_text = '[nlcontrol.systems.DynamicController] The number of rows of B should be equal to the number of states.'
             raise AssertionError(error_text)
-
-        if Matrix(C).shape[0] == dim_states:
-            if self.observability_linear(A, C):
-                self.C = Matrix(C)
+        
+        if C is not None:
+            if Matrix(C).shape[0] == dim_states:
+                if self.observability_linear(A, C):
+                    self.C = Matrix(C)
+                else:
+                    error_text = '[nlcontrol.systems.DynamicController] The system is not observable.'
+                    raise AssertionError(error_text)
             else:
-                error_text = '[nlcontrol.systems.DynamicController] The system is not observable.'
+                error_text = '[nlcontrol.systems.DynamicController] The number of rows of C should be equal to the number of states.'
                 raise AssertionError(error_text)
         else:
-            error_text = '[nlcontrol.systems.DynamicController] The number of rows of C should be equal to the number of states.'
-            raise AssertionError(error_text)
+            self.C = None
 
-        if callable(f):
-            argument = self.C.T * Matrix(self.states)
-            self.f = f(argument[0, 0])
-        elif f == 0:
-            self.f = 0
+        if self.C is not None:
+            if callable(f):
+                argument = self.C.T * Matrix(self.states)
+                #TODO: make an array of f
+                self.f = f(argument[0, 0])
+            elif f == 0:
+                self.f = 0
+            else:
+                error_text = '[nlcontrol.systems.DynamicController] Argument f should be a callable function or identical 0.'
+                raise AssertionError(error_text)
         else:
-            error_text = '[nlcontrol.systems.DynamicController] Argument f should be a callable function or identical 0.'
-            raise AssertionError(error_text)
+            self.f = f
         
         def return_dynamic_symbols(expr):
             try:
@@ -383,8 +390,8 @@ class DynamicController(ControllerBase):
 
         [1]. R.E. Kalman, "On the general theory of control systems", IFAC Proc., vol. 1(1), pp. 491-502, 1960. doi.10.1016/S1474-6670(17)70094-8.
         """
-        A = np.array(A)
-        B = np.array(B)
+        A = np.array(A, dtype=float)
+        B = np.array(B, dtype=float)
         p = np.linalg.matrix_rank(A)
         zeta = None
         for i in range(p):
@@ -412,8 +419,8 @@ class DynamicController(ControllerBase):
 
         [1]. R.E. Kalman, "On the general theory of control systems", IFAC Proc., vol. 1(1), pp. 491-502, 1960. doi.10.1016/S1474-6670(17)70094-8.
         """
-        A = np.array(A)
-        C = np.array(C).T
+        A = np.array(A, dtype=float)
+        C = np.array(C, dtype=float).T
         p = np.linalg.matrix_rank(A)
         Q = None
         for i in range(p):
@@ -437,7 +444,8 @@ class DynamicController(ControllerBase):
             matrix: array-like
                 A square matrix.
         """
-        matrix = np.array(matrix)
+        matrix = np.array(matrix, dtype=float)
+        print(matrix)
         eig,_ = np.linalg.eig(matrix)
         check_eig = [True if eig < 0  else False for eig in np.real(eig)]
         if False in check_eig:
