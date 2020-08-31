@@ -204,10 +204,10 @@ class DynamicController(ControllerBase):
         self.minimal_inputs = self.inputs
         self.inputs = Array([val for pair in zip(self.inputs, self.dinputs) for val in pair])
         
-        self._A = None
-        self._B = None
-        self._C = None
-        self._f = None
+        self.A = None
+        self.B = None
+        self.C = None
+        self.f = None
         self.eta = None
         self.phi = None
 
@@ -280,9 +280,9 @@ class DynamicController(ControllerBase):
             B = [[B]]
         if np.isscalar(C):
             C = [[C]]
-        if type(eta) is not list:
+        if type(eta) not in (list, Matrix):
             eta = [[eta]]
-        if type(phi) is not list:          
+        if type(phi) not in (list, Matrix):          
             phi = [[phi]]
 
         if Matrix(A).shape[1] == dim_states:
@@ -305,20 +305,17 @@ class DynamicController(ControllerBase):
             error_text = '[nlcontrol.systems.DynamicController] The number of rows of B should be equal to the number of states.'
             raise AssertionError(error_text)
         
-        if C is not None:
-            if Matrix(C).shape[0] == dim_states:
-                if self.observability_linear(A, C):
-                    self.C = Matrix(C)
-                else:
-                    error_text = '[nlcontrol.systems.DynamicController] The system is not observable.'
-                    raise AssertionError(error_text)
+        if Matrix(C).shape[0] == dim_states:
+            if self.observability_linear(A, C):
+                self.C = Matrix(C)
             else:
-                error_text = '[nlcontrol.systems.DynamicController] The number of rows of C should be equal to the number of states.'
+                error_text = '[nlcontrol.systems.DynamicController] The system is not observable.'
                 raise AssertionError(error_text)
         else:
-            self.C = None
+            error_text = '[nlcontrol.systems.DynamicController] The number of rows of C should be equal to the number of states.'
+            raise AssertionError(error_text)
 
-        if self.C is not None:
+        if type(f) is not Matrix:
             if callable(f):
                 argument = self.C.T * Matrix(self.states)
                 #TODO: make an array of f
@@ -331,16 +328,19 @@ class DynamicController(ControllerBase):
         else:
             self.f = f
         
+
         def return_dynamic_symbols(expr):
             try:
                 return find_dynamicsymbols(expr)
             except:
                 return set()
-
-
+        
         if Matrix(eta).shape[0] == dim_states and Matrix(eta).shape[1] == 1:
             # Check whether the expressions only contain inputs
-            dynamic_symbols_eta = [return_dynamic_symbols(eta_el) for eta_el in list(itertools.chain(*eta))]
+            if type(eta) is Matrix:
+                dynamic_symbols_eta = [return_dynamic_symbols(eta_el[0]) for eta_el in eta.tolist()]
+            else:
+                dynamic_symbols_eta = [return_dynamic_symbols(eta_el) for eta_el in list(itertools.chain(*eta))]
             dynamic_symbols_eta = set.union(*dynamic_symbols_eta)
 
             if dynamic_symbols_eta <= (
@@ -355,7 +355,10 @@ class DynamicController(ControllerBase):
             raise AssertionError(error_text)
 
         # Check whether the expressions only contain inputs and derivatives of the input
-        dynamic_symbols_phi = [return_dynamic_symbols(phi_el) for phi_el in list(itertools.chain(*phi))]
+        if type(phi) is Matrix:
+            dynamic_symbols_phi = [return_dynamic_symbols(phi_el[0]) for phi_el in phi.tolist()]
+        else:
+            dynamic_symbols_phi = [return_dynamic_symbols(phi_el) for phi_el in list(itertools.chain(*phi))]
         dynamic_symbols_phi = set.union(*dynamic_symbols_phi)
 
         if dynamic_symbols_phi <= (
@@ -445,7 +448,6 @@ class DynamicController(ControllerBase):
                 A square matrix.
         """
         matrix = np.array(matrix, dtype=float)
-        print(matrix)
         eig,_ = np.linalg.eig(matrix)
         check_eig = [True if eig < 0  else False for eig in np.real(eig)]
         if False in check_eig:

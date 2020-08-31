@@ -19,18 +19,18 @@ class EulerLagrangeController(DynamicController):
         self.dinputs, _ = self.__create_inputs__()
 
         if type(D0) in (float, int):
-            D0 = [D0]
-            C0 = [C0]
-            K0 = [K0]
-            C1 = [C1]
-            f = [f]
+            D0 = [[D0]]
+            C0 = [[C0]]
+            K0 = [[K0]]
+            C1 = [[C1]]
+            f = [[f]]
         if len(self.inputs) == 1:
-            NA = [NA]
-            NB = [NB]
+            NA = [[NA]]
+            NB = [[NB]]
         self.inertia_matrix = Matrix(D0)
         self.minimal_states = self.create_states(len(D0))
         self.minimal_dstates = self.create_states(len(D0), level=1)
-        self.states = Array(self.minimal_states.tolist() + self.minimal_dstates.tolist())
+        self.states = self.create_states(len(D0) * 2)
         self.damping_matrix = Matrix(C0)
         self.stiffness_matrix = Matrix(K0)
         self.nonlinear_stiffness_matrix = Matrix(C1)
@@ -40,8 +40,8 @@ class EulerLagrangeController(DynamicController):
 
         # Create system
         super().__init__(states = self.states, inputs = self.inputs)
-        A, B, f, eta, phi  = self.convert_to_dynamic_controller()
-        self.define_controller(A, B, None, f, eta, phi)
+        A, B, C, f, eta, phi  = self.convert_to_dynamic_controller()
+        self.define_controller(A, B, C, f, eta, phi)
 
 
     @property
@@ -216,6 +216,9 @@ class EulerLagrangeController(DynamicController):
         B = Matrix(BlockMatrix([[Z], [C1_D0]]))
 
         f = self.nonlinear_stiffness_fcts
+
+        Z = zeros(dim_states, len(f))
+        C = Matrix(BlockMatrix([[self.nonlinear_stiffness_matrix], [Z]]))
         
         NA_D0 = -D0_inv * self.gain_inputs
         NB_D0 = -D0_inv * self.gain_dinputs
@@ -224,4 +227,4 @@ class EulerLagrangeController(DynamicController):
 
         phi = self.gain_inputs.T * Matrix(self.minimal_states) - self.gain_dinputs.T * Matrix(self.minimal_dstates)
         
-        return A, B, f, eta, phi
+        return A, B, C, f, eta, phi

@@ -168,7 +168,10 @@ class SystemBase():
         if arg is None:
             return None
         elif isinstance(arg, NDimArray):
-            return arg
+            if level == 0:
+                return arg
+            else:
+                return Array([diff(st, Symbol('t'), level) for st in arg])
         else:
             if (',' in arg):
                 return Array(dynamicsymbols(arg, level))
