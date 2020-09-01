@@ -55,7 +55,7 @@ class SystemBase():
             >>> inputs = 'u'
             >>> sys = SystemBase(states, inputs)
             >>> x, xdot, u = sys.create_variables()
-            >>> sys.system = DynamicalSystem(state_equation=Array([-x1 + u1]), state=x1, output_equation=x1, input_=u1)
+            >>> sys.system = DynamicalSystem(state_equation=Array([-x + u1]), state=x, output_equation=x, input_=u1)
 
         * Statefull system with two states, one input, and two outputs:
             >>> states = 'x1, x2'
@@ -168,7 +168,10 @@ class SystemBase():
         if arg is None:
             return None
         elif isinstance(arg, NDimArray):
-            return arg
+            if level == 0:
+                return arg
+            else:
+                return Array([diff(st, Symbol('t'), level) for st in arg])
         else:
             if (',' in arg):
                 return Array(dynamicsymbols(arg, level))
@@ -264,7 +267,7 @@ class SystemBase():
         if np.isscalar(working_point_states):
             working_point_states = [working_point_states]
         if (len(working_point_states) != len(self.states)):
-            error_text = '[SystemBase.linearize] The working point should have the same size as the dimension of the states.'
+            error_text = '[SystemBase.linearize] The working point should have the same size as the dimension of the states. The dimension of the state is {}.'.format(len(self.states))
             raise ValueError(error_text)
 
         substitutions_states = dict(zip(self.states, working_point_states))
@@ -280,7 +283,8 @@ class SystemBase():
 
         def create_linear_equation(nl_expr):
             linearized_expr = []
-            for k in range(len(self.dstates)):
+            # for k in range(len(self.dstates)):
+            for k in range(len(nl_expr)):
                 linearized_term = 0
                 for j in range(len(self.states)):
                     linearized_term += msubs(diff(nl_expr[k], self.states[j]), substitutions_states) * (self.states[j] - substitutions_states[self.states[j]])
@@ -305,12 +309,12 @@ class SystemBase():
             for i in range(len(state_equations)):
                 col_A = [state_equations[i].coeff(state) for state in self.states]
                 A.append(col_A)
-                col_B = [state_equations[i].coeff(input_el) for input_el in self.inputs]
+                col_B = [state_equations[i].coeff(input_el) for input_el in self.inputs] if self.inputs is not None else [0]
                 B.append(col_B)
             for j in range(len(output_equations)):
                 col_C = [output_equations[j].coeff(state) for state in self.states]
                 C.append(col_C)
-                col_D = [output_equations[j].coeff(input_el) for input_el in self.inputs]
+                col_D = [output_equations[j].coeff(input_el) for input_el in self.inputs] if self.inputs is not None else [0]
                 D.append(col_D)
             return np.array(A), np.array(B), np.array(C), np.array(D)
 
@@ -390,11 +394,6 @@ class SystemBase():
                 >>> print('State eq's: ', parallel_sys.system.state_equation)
                 >>> print('Output eq's: ', parallel_sys.system.output_equation)
         """
-        # print(self.sys.dim_input, " - ", sys_append.sys.dim_input)
-        # print('inputs: ', sys_append.sys.input)
-        
-        # print(self.sys.dim_output, " - ", sys_append.sys.dim_output)
-        # print('outputs: ', sys_append.sys.output_equation)
         if (self.sys.dim_input != sys_append.sys.dim_input):
             error_text = '[SystemBase.parallel] Dimension of the input of the first system is not equal to the dimension of the input of the second system.'
             raise ValueError(error_text)

@@ -61,3 +61,19 @@ substitutions = dict(zip(old_symb, new_symb))
 print(substitutions)
 print(tuple(new_args))
 # new_expr = msubs(old_expr, substitutions)
+
+inp = 'w'
+st = 'z1, z2'
+contr = DynamicController(states=st, inputs=inp)
+z1, z2, z1dot, z2dot, w, wdot = contr.create_variables()
+a0, a1, k1 = 12.87, 6.63, 0.45
+b0 = (48.65 - a1) * k1
+b1 = (11.79 - 1) * k1
+A = [[0, 1], [-a0, -a1]]
+B = [[0], [1]]
+C = [[b0], [b1]]
+f = lambda x: x**2
+eta = [[w + wdot], [(w + wdot)**2]]
+phi = [[z1], [z2dot]]
+contr.define_controller(A, B, C, f, eta, phi)
+print(contr)

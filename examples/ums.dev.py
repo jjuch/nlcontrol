@@ -32,4 +32,7 @@ print(contr)
 
 
 CL = ClosedLoop(ums, contr)
-CL.simulate([1, 0 , np.pi/4, 0], 100)
+
+# CL.linearize([0, 0, 0, 0])
+exit()
+CL.simulation(5, [1, 0 , np.pi/4, 0], 100)
