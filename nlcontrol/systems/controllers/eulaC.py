@@ -225,6 +225,6 @@ class EulerLagrangeController(DynamicController):
         Z = zeros(dim_states, 1)
         eta = Matrix(BlockMatrix([[Z], [NA_D0 * Matrix(self.minimal_inputs) + NB_D0 * Matrix(self.dinputs)]]))
 
-        phi = self.gain_inputs.T * Matrix(self.minimal_states) - self.gain_dinputs.T * Matrix(self.minimal_dstates)
+        phi = self.gain_inputs.T * D0_inv * self.stiffness_matrix ** (-1) * self.inertia_matrix * self.stiffness_matrix * Matrix(self.minimal_states) - self.gain_dinputs.T * D0_inv * self.stiffness_matrix ** (-1) * self.inertia_matrix * self.stiffness_matrix * Matrix(self.minimal_dstates)
         
         return A, B, C, f, eta, phi
