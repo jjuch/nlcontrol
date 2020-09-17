@@ -7,11 +7,19 @@ from nlcontrol.systems.controllers import DynamicController
 import numpy as np
 
 class EulerLagrangeController(DynamicController):
-    def __init__(self, D0, C0, K0, C1, f, NA, NB, inputs):
+    def __init__(self, D0, C0, K0, C1, f, NA, NB, inputs, nonlinearity_type='stiffness'):
         self._D0 = None
         self._C0 = None
         self._K0 = None
         self._C1 = None
+        if nonlinearity_type == 'stiffness':
+            self.nl_stiffness = True
+        elif nonlinearity_type == 'damping':
+            self.nl_stiffness = False
+        else:
+            error_text = "[EulerLagrangeController.init] The keyword 'nonlinearity_type' should be a string which is equal to 'stiffness' or 'damping'."
+            raise ValueError(error_text)
+
         self._nl = None
         self._NA = None
         self._NB = None
@@ -33,7 +41,7 @@ class EulerLagrangeController(DynamicController):
         self.states = self.create_states(len(D0) * 2)
         self.damping_matrix = Matrix(C0)
         self.stiffness_matrix = Matrix(K0)
-        self.nonlinear_stiffness_matrix = Matrix(C1)
+        self.nonlinear_coefficient_matrix = Matrix(C1)
         self.nonlinear_stiffness_fcts = f
         self.gain_inputs = Matrix(NA)
         self.gain_dinputs = Matrix(NB)
@@ -93,16 +101,18 @@ class EulerLagrangeController(DynamicController):
             raise ValueError(error_text)
 
     @property
-    def nonlinear_stiffness_matrix(self):
+    def nonlinear_coefficient_matrix(self):
         return self._C1
 
-    @nonlinear_stiffness_matrix.setter
-    def nonlinear_stiffness_matrix(self, matrix:Matrix):
+    @nonlinear_coefficient_matrix.setter
+    def nonlinear_coefficient_matrix(self, matrix:Matrix or None):
         if matrix.shape[0] == matrix.shape[1] and matrix.shape[0] == len(self.minimal_states):
             self._C1 = matrix
         else:
             error_text = '[EulerLagrangeController.stiffness_matrix (setter)] The stiffness matrix should be squared and should have the same dimension as the states p.'
             raise ValueError(error_text)
+
+
     
     @property
     def nonlinear_stiffness_fcts(self):
@@ -111,7 +121,12 @@ class EulerLagrangeController(DynamicController):
     @nonlinear_stiffness_fcts.setter
     def nonlinear_stiffness_fcts(self, matrix:Matrix):
         if len(matrix) == len(self.minimal_states):
-            argument = Array(self.nonlinear_stiffness_matrix.T * Matrix(self.minimal_states))
+            Z = zeros(len(self.minimal_states), len(matrix))
+            if self.nl_stiffness:
+                C = Matrix(BlockMatrix([[self.nonlinear_coefficient_matrix], [Z]]))
+            else:
+                C = Matrix(BlockMatrix([[Z], [self.nonlinear_coefficient_matrix]]))
+            argument = Array(C.T * Matrix(self.states))
             completed_f = []
             for idx, fct in enumerate(matrix):
                 if callable(fct[0]):
@@ -211,14 +226,17 @@ class EulerLagrangeController(DynamicController):
         C0_D0 = -D0_inv * self.damping_matrix
         A = Matrix(BlockMatrix([[Z, In], [K0_D0, C0_D0]]))
         
-        C1_D0 = D0_inv * self.nonlinear_stiffness_matrix
+        C1_D0 = D0_inv * self.nonlinear_coefficient_matrix
         Z = zeros(dim_states, len(self.nonlinear_stiffness_fcts))
         B = Matrix(BlockMatrix([[Z], [C1_D0]]))
 
         f = self.nonlinear_stiffness_fcts
 
         Z = zeros(dim_states, len(f))
-        C = Matrix(BlockMatrix([[self.nonlinear_stiffness_matrix], [Z]]))
+        if self.nl_stiffness:
+            C = Matrix(BlockMatrix([[self.nonlinear_coefficient_matrix], [Z]]))
+        else:
+            C = Matrix(BlockMatrix([[Z], [self.nonlinear_coefficient_matrix]]))
         
         NA_D0 = -D0_inv * self.gain_inputs
         NB_D0 = -D0_inv * self.gain_dinputs

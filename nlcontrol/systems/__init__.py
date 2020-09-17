@@ -13,6 +13,7 @@ Classes:
         ControllerBase : The base definition of any type of controller, based on SystemBase object.
         DynamicController : A general dynamic controller definition.
         PID : A nonlinear PID controller.
+        EulerLagrangeController : A conversion class build upon the DynamicController class
 
 Functions:
     * utils:
