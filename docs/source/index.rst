@@ -5,7 +5,6 @@ Nlcontrol is a comprehensive library for simulating nonlinear control loops with
 
 .. toctree::
    :maxdepth: 2
-   :caption: Contents:
 
    license
 
