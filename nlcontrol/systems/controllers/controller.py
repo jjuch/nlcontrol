@@ -96,25 +96,25 @@ class ControllerBase(SystemBase):
     
     def series(self, contr_append):
         """
-            A controller is generated which is the result of a serial connection of two controllers. The outputs of this object are connected to the inputs of the appended system and a new controller is achieved which has the inputs of the current system and the outputs of the appended system. Notice that the dimensions of the output of the current system should be equal to the dimension of the input of the appended system.
+        A controller is generated which is the result of a serial connection of two controllers. The outputs of this object are connected to the inputs of the appended system and a new controller is achieved which has the inputs of the current system and the outputs of the appended system. Notice that the dimensions of the output of the current system should be equal to the dimension of the input of the appended system.
 
-            Parameters:
-            -----------
-                contr_append : ControllerBase object
-                    the controller that is placed in a serial configuration. `contr_append' follows the current system.
+        Parameters:
+        -----------
+            contr_append : ControllerBase object
+                the controller that is placed in a serial configuration. `contr_append' follows the current system.
 
-            Returns:
-            --------
-                A ControllerBase object with the serial system's equations.
+        Returns:
+        --------
+            A ControllerBase object with the serial system's equations.
 
-            Examples:
-            ---------
-                * Place `contr1' behind `contr2' in a serial configuration and show the inputs, states, state equations and output equations:
-                >>> series_sys = contr1.series(contr2)
-                >>> print('inputs: ', series_sys.system.input_)
-                >>> print('States: ', series_sys.system.state)
-                >>> print('State eq's: ', series_sys.system.state_equation)
-                >>> print('Output eq's: ', series_sys.system.output_equation)
+        Examples:
+        ---------
+            * Place `contr1' behind `contr2' in a serial configuration and show the inputs, states, state equations and output equations:
+            >>> series_sys = contr1.series(contr2)
+            >>> print('inputs: ', series_sys.system.input_)
+            >>> print('States: ', series_sys.system.state)
+            >>> print('State eq's: ', series_sys.system.state_equation)
+            >>> print('Output eq's: ', series_sys.system.output_equation)
         """
         series_system = super().series(contr_append)
         return ControllerBase(inputs=series_system.inputs, states=series_system.states, sys=series_system.system)
@@ -122,25 +122,25 @@ class ControllerBase(SystemBase):
     
     def parallel(self, contr_append):
         """
-            A controller is generated which is the result of a parallel connection of two controllers. The inputs of this object are connected to the system that is placed in parallel and a new system is achieved with the output the sum of the outputs of both systems in parallel. Notice that the dimensions of the inputs and the outputs of both systems should be equal.
+        A controller is generated which is the result of a parallel connection of two controllers. The inputs of this object are connected to the system that is placed in parallel and a new system is achieved with the output the sum of the outputs of both systems in parallel. Notice that the dimensions of the inputs and the outputs of both systems should be equal.
 
-            Parameters:
-            -----------
-                contr_append : ControllerBase object
-                    the controller that is added in parallel.
+        Parameters:
+        -----------
+            contr_append : ControllerBase object
+                the controller that is added in parallel.
 
-            Returns:
-            --------
-                A ControllerBase object with the parallel system's equations.
+        Returns:
+        --------
+            A ControllerBase object with the parallel system's equations.
 
-            Examples:
-            ---------
-                * Place `contr2' in parallel with `contr1' and show the inputs, states, state equations and output equations:
-                >>> parallel_sys = contr1.parallel(contr2)
-                >>> print('inputs: ', parallel_sys.system.input_)
-                >>> print('States: ', parallel_sys.system.state)
-                >>> print('State eq's: ', parallel_sys.system.state_equation)
-                >>> print('Output eq's: ', parallel_sys.system.output_equation)
+        Examples:
+        ---------
+            * Place `contr2' in parallel with `contr1' and show the inputs, states, state equations and output equations:
+            >>> parallel_sys = contr1.parallel(contr2)
+            >>> print('inputs: ', parallel_sys.system.input_)
+            >>> print('States: ', parallel_sys.system.state)
+            >>> print('State eq's: ', parallel_sys.system.state_equation)
+            >>> print('Output eq's: ', parallel_sys.system.output_equation)
         """
         parallel_system = super().parallel(contr_append)
         return ControllerBase(inputs=parallel_system.inputs, states=parallel_system.states, sys=parallel_system.system)
@@ -161,7 +161,9 @@ class DynamicController(ControllerBase):
         * A is Hurwitz,
         * (A, B) should be controllable, 
         * (A, C) is observable,
-        * rank(B) = rang (C) = s <= n, with s the dimension of sigma, and n the number of states. 
+        * rank(B) = rang (C) = s <= n, with s the dimension of sigma, and n the number of states.
+
+    More info on the controller can be found in [1, 2].
 
     Parameters:
     -----------
@@ -190,6 +192,12 @@ class DynamicController(ControllerBase):
             >>> phi = [[z1], [z2dot]]
             >>> contr.define_controller(A, B, C, f, eta, phi)
             >>> print(contr)
+
+    References
+    ----------
+        [1] L. Luyckx, The nonlinear control of underactuated mechanical systems. PhD thesis, UGent, Ghent, Belgium, 5 2006.
+
+        [2] M. Loccufier, "Stabilization and set-point regulation of underactuated mechanical systems", Journal of Physics: Conference Series, 2016, vol. 744, no. 1, p.012065.
 
     """
     def __init__(self, *args, **kwargs):

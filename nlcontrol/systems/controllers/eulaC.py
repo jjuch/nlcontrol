@@ -7,6 +7,86 @@ from nlcontrol.systems.controllers import DynamicController
 import numpy as np
 
 class EulerLagrangeController(DynamicController):
+    """
+    EulerLagrangeController(D0, C0, K0, C1, f, NA, NB, inputs, nonlinearity_type='stiffness')
+
+    The EulerLagrangeController object is based on the DynamicController class. The control equation is:
+        D0.p'' + C0.p' + K0.p + C1.f(C1^T.p) + N0.w' = 0
+    The apostrophe represents a time derivative, ^T is the transpose of the matrix. 
+
+    The output equation is:
+        NA^T.D0^(-1).K0^(-1).D0.K0.p - NB^T.D0^(-1).K0^(-1).D0.K0.p'
+    
+    More info on the controller can be found in [1, 2]. Here, the parameter \bar{gamma} = 0 and \bar{alpha} = I, with I the identity matrix.
+
+    Parameters:
+    -----------
+        D0 : matrix-like
+            inertia matrix with numerical values. The matrix should be positive definite and symmetric.
+        C0 : matrix-like
+            linear damping matrix with numerical values. The matrix should be positive definite and symmetric.
+        K0 : matrix-like
+            linear stiffness matrix with numerical values. The matrix should be positive definite and symmetric.
+        C1 : matrix-like
+            nonlinear function's constant matrix with numerical values.
+        f : matrix-like
+            nonlinear functions containing lambda functions.
+        NA : matrix-like
+            the numerical multipliers of the position feedback variables.
+        NB : matrix-like
+            the numerical multipliers of the velocity feedback variables.
+        nonlinearity_type : string
+            the nonlinear part acts on the state or the derivative of the state of the dynamic controller. The only options are `stiffness' and `damping'.
+
+    Attributes:
+    -----------
+        D0 : inertia_matrix
+            Inertia forces.
+        C0 : damping_matrix
+            Damping and Coriolis forces.
+        K0 : stiffness_matrix
+            Elastic en centrifugal forces.
+        C1 : nonlinear_coefficient_matrix
+            Coëfficient of the nonlinear functions.
+        nl : nonlinear_stiffness_fcts
+            Nonlinear functions of the controller.
+        NA : gain_inputs
+            Coëfficients of the position inputs.
+        NB : gain_dinputs
+            Coëfficients of the velocity inputs.
+        inputs : sympy array of dynamicsymbols
+            input variables.
+        dinputs : sympy array of dynamicsymbols
+            derivative of the input array
+        states : sympy array of dynamicsymbols
+            state variables.
+        
+        
+    Examples:
+    ---------
+        * An Euler-Lagrange controller with two states, the input is the minimal state of a BasicSystem `sys' and the nonlinearity is acting on the position variable of the Euler-Lagrange controller's state:
+            >>> from sympy import atan
+            >>> D0 = [[1, 0], [0, 1.5]]
+            >>> C0 = [[25, 0], [0, 35]]
+            >>> K0 = [[1, 0], [0, 1]]
+            >>> C1 = [[0.5, 0], [0, 0.5]]
+            >>> s_star = 0.01
+            >>> f0 = 10
+            >>> f1 = 1
+            >>> f2 = (f0 - f1)*s_star
+            >>> func = lambda x: f1 * x + f2 * atan((f0 - f1)/f2 * x)
+            >>> f = [[func], [func]]
+            >>> NA = [[0, 0], [0, 0]]
+            >>> NB = [[3, 0], [2.5, 0]]
+            >>> contr = EulerLagrangeController(D0, C0, K0, C1, f, NA, NB, sys.minimal_states, nonlinearity_type='stiffness')
+    
+    References
+    ----------
+        [1] L. Luyckx, The nonlinear control of underactuated mechanical systems. PhD thesis, UGent, Ghent, Belgium, 5 2006.
+
+        [2] M. Loccufier, "Stabilization and set-point regulation of underactuated mechanical systems", Journal of Physics: Conference Series, 2016, vol. 744, no. 1, p.012065.
+
+    """
     def __init__(self, D0, C0, K0, C1, f, NA, NB, inputs, nonlinearity_type='stiffness'):
         self._D0 = None
         self._C0 = None
@@ -218,6 +298,14 @@ class EulerLagrangeController(DynamicController):
 
     
     def convert_to_dynamic_controller(self):
+        """
+        The Euler-Lagrange formalism is transformed to the state and output equation notation of the DynamicController class.
+
+        Returns:
+        --------
+            result : tuple
+                The tuple contains the transformed matrices that are compatible with the function define_controller of DynamicController. 
+        """
         dim_states = len(self.minimal_states)
         D0_inv = self.inertia_matrix ** (-1)
         In = eye(dim_states)
