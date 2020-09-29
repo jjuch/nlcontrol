@@ -5,3 +5,4 @@ Sphinx == 3.2.1
 simupy == 1.0.0
 sympy == 1.6.2
 matplotlib == 3.3.2
+control == 0.8.3
