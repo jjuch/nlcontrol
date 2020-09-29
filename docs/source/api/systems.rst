@@ -1,7 +1,7 @@
 Systems
-=======
+--------
 
-Base Systems
+Base System
 ^^^^^^^^^^^^^
 
 .. automodule:: nlcontrol.systems.system
