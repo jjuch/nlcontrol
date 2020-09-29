@@ -2,3 +2,6 @@
 # $ pip install --upgrade -r <this file>
 numpydoc == 1.1.0
 Sphinx == 3.2.1
+simupy == 1.0.0
+sympy == 1.6.2
+matplotlib == 3.3.2
