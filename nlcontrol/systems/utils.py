@@ -9,19 +9,20 @@ def write_simulation_result_to_csv(simulation_result, file_name=None):
     """
     Write the results of a SimulationResult object (see simupy.BlockDiagram.simulate) to a csv file. This object type is also returned by a SystemBase's simulation function.
 
-    Parameters:
+    Parameters
     -----------
-        simulation_result : SimulationResult object or list
-            Results of a simulation packaged as Simupy's SimulationResult object or a list which includes the time, input, state, and output vector in this order.
-        file_name : string
-            The filename of the newly created csv file. Defaults to a timestamp.
+    simulation_result : SimulationResult object or list
+        Results of a simulation packaged as Simupy's SimulationResult object or a list which includes the time, input, state, and output vector in this order.
+    file_name : string
+        The filename of the newly created csv file. Defaults to a timestamp.
 
-    Examples:
+
+    Examples
     ---------
-        * Simulate a SystemBase object called 'sys' and store the results:
-            >>> t, x, y, u, res = sys.simulation(1)
-            >>> write_simulation_result_to_csv(res, file_name='use_simulation_result_object')
-            >>> write_simulation_result_to_csv([t, u, x, y], file_name='use_separate_vectors')
+    * Simulate a SystemBase object called 'sys' and store the results:
+        >>> t, x, y, u, res = sys.simulation(1)
+        >>> write_simulation_result_to_csv(res, file_name='use_simulation_result_object')
+        >>> write_simulation_result_to_csv([t, u, x, y], file_name='use_separate_vectors')
 
     """
     if hasattr(sys.modules['__main__'], '__file__'):
@@ -75,40 +76,42 @@ def write_simulation_result_to_csv(simulation_result, file_name=None):
 
 def read_simulation_result_from_csv(file_name, plot=False):
     """
-    Read a csv file created with write_simulation_result_to_csv() containing simulation results. Based on the header it is determined if the results contains input or event vector. There is a possibility to create plot of the data.
+    Read a csv file created with `write_simulation_result_to_csv()` containing simulation results. Based on the header it is determined if the results contains input or event vector. There is a possibility to create plot of the data.
 
-    Parameters:
+    Parameters
     -----------
-        file_name : string
-            The filename of the csv file, containing the extension.
-        plot : boolean, optional
-            Create a plot, default: False
+    file_name : string
+        The filename of the csv file, containing the extension.
+    plot : boolean, optional
+        Create a plot, default: False
 
-    Returns:
+
+    Returns
     --------
-        tuple :
-            t : numpy array
-                The time vector.
-            x : numpy array
-                The state vectors.
-            y : numpy array
-                The output vectors. Contains the inputs, when the data contains the event vector.
-            u or e : numpy array
-                The input vectors or event vectors. See boolean 'contains_u' to know which one.
-            contains_u : boolean
-                Indicates whether the output contains the input or event vector.
+    tuple :
+        t : numpy array
+            The time vector.
+        x : numpy array
+            The state vectors.
+        y : numpy array
+            The output vectors. Contains the inputs, when the data contains the event vector.
+        u or e : numpy array
+            The input vectors or event vectors. See boolean 'contains_u' to know which one.
+        contains_u : boolean
+            Indicates whether the output contains the input or event vector.
 
-    Examples:
+
+    Examples
     ---------
-        * Read and plot a csv file 'results.csv' with an input vector:
-            >>> t, x, y, u, contains_u = read_simulation_result_from_csv('results.csv', plot=True)
-            >>> print(contains_u)
-                True
+    * Read and plot a csv file 'results.csv' with an input vector:
+        >>> t, x, y, u, contains_u = read_simulation_result_from_csv('results.csv', plot=True)
+        >>> print(contains_u)
+            True
 
-        * Read and plot a csv file 'results.csv' with an event vector:
-            >>> t, x, y, e, contains_u = read_simulation_result_from_csv('results.csv', plot=True)
-            >>> print(contains_u)
-                False
+    * Read and plot a csv file 'results.csv' with an event vector:
+        >>> t, x, y, e, contains_u = read_simulation_result_from_csv('results.csv', plot=True)
+        >>> print(contains_u)
+            False
 
     """
     def convert_string_reads(row):

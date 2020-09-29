@@ -9,50 +9,54 @@ class PID(ControllerBase):
     PID(ksi0, chi0, psi0, inputs=inputs)
 
     A nonlinear PID controller can be created using the PID class. This class is based on the ControllerBase object. The nonlinear PID is is based on the input vector w(t), containing sympy's dynamicsymbols. The formulation is the following:
-        u(t) = ksi0(w(t)) + chi0(int(w(t),t)) + psi0(w'(t))
-    with .'(t) indicating the time derivative of the signal. The class object allows the construction of P, PI, PD and PID controllers, by setting chi0 or psi0 to None. The system is based on a MemorylessSystem object from simupy.
 
-    Parameters:
+    .. math::
+        u(t) = \\xi_0(w(t)) + \\chi_0\\left(\\int(w(t),t)\\right) + \\psi_0(w'(t))
+
+    with :math:`.'(t)` indicating the time derivative of the signal. The class object allows the construction of P, PI, PD and PID controllers, by setting chi0 or psi0 to None. The system is based on a MemorylessSystem object from simupy.
+
+    Parameters
     -----------
-        args : optional
-            ksi0 : array-like
-                A list of P-action expressions, containing the input signal.
-            chi0 : array-like
-                A list of I-action expressions, containing the integral of the input signal.
-            psi0 : array-like
-                A list of D-action expressions, containing the derivative of the input signal.
-        kwargs : 
-            inputs : array-like or string
-                if `inputs` is a string, it is a comma-separated listing of the input names. If `inputs` is array-like it contains the inputs as sympy's dynamic symbols.
-    Examples:
+    args : optional
+        ksi0 : array-like
+            A list of P-action expressions, containing the input signal.
+        chi0 : array-like
+            A list of I-action expressions, containing the integral of the input signal.
+        psi0 : array-like
+            A list of D-action expressions, containing the derivative of the input signal.
+    kwargs : 
+        inputs : array-like or string
+            if `inputs` is a string, it is a comma-separated listing of the input names. If `inputs` is array-like it contains the inputs as sympy's dynamic symbols.
+
+    Examples
     ---------
-        * Create a classic PD controller with two inputs:
-            >>> C = PID(inputs='w1, w2')
-            >>> w1, w2, w1dot, w2dot = C.create_variables()
-            >>> kp = 1, kd = 5
-            >>> ksi0 = [kp * w1, kp * w2]
-            >>> psi0 = [kd * w1dot, kd * w2dot]
-            >>> C.define_PID(ksi0, None, psi0)
-        
-        * Same as exercise as above, but with a different constructor:
-            >>> from sympy.physics.mechanics import dynamicsymbols
-            >>> from sympy import Symbol, diff
-            >>> w = dynamicsymbols('w1, w2')
-            >>> w1, w2 = tuple(inputs)
-            >>> kp = 1, kd = 5
-            >>> ksi0 = [kp * w1, kp * w2]
-            >>> psi0 = [kd * diff(w1, Symbol('t')), kd * diff(w2, Symbol('t'))]
-            >>> C = PID(ksi0, None, psi0, inputs=w)
+    * Create a classic PD controller with two inputs:
+        >>> C = PID(inputs='w1, w2')
+        >>> w1, w2, w1dot, w2dot = C.create_variables()
+        >>> kp = 1, kd = 5
+        >>> ksi0 = [kp * w1, kp * w2]
+        >>> psi0 = [kd * w1dot, kd * w2dot]
+        >>> C.define_PID(ksi0, None, psi0)
+    
+    * Same as exercise as above, but with a different constructor:
+        >>> from sympy.physics.mechanics import dynamicsymbols
+        >>> from sympy import Symbol, diff
+        >>> w = dynamicsymbols('w1, w2')
+        >>> w1, w2 = tuple(inputs)
+        >>> kp = 1, kd = 5
+        >>> ksi0 = [kp * w1, kp * w2]
+        >>> psi0 = [kd * diff(w1, Symbol('t')), kd * diff(w2, Symbol('t'))]
+        >>> C = PID(ksi0, None, psi0, inputs=w)
 
-        * Formulate a standard I-action chi0:
-            >>> from sympy.physics.mechanics import dynamicsymbols
-            >>> from sympy import Symbol, integrate
-            >>> w = dynamicsymbols('w1, w2')
-            >>> w1, w2 = tuple(inputs)
-            >>> ki = 0.5
-            >>> chi0 = [ki * integrate(w1, Symbol('t')), ki * integrate(w2, Symbol('t'))]
-
+    * Formulate a standard I-action chi0:
+        >>> from sympy.physics.mechanics import dynamicsymbols
+        >>> from sympy import Symbol, integrate
+        >>> w = dynamicsymbols('w1, w2')
+        >>> w1, w2 = tuple(inputs)
+        >>> ki = 0.5
+        >>> chi0 = [ki * integrate(w1, Symbol('t')), ki * integrate(w2, Symbol('t'))]
     """
+
     def __init__(self, *args, **kwargs):
         if 'inputs' not in kwargs.keys():
             error_text = "[nlcontrol.systems.PID] An 'inputs=' keyword is necessary."
@@ -114,14 +118,14 @@ class PID(ControllerBase):
         """
         Set all three PID actions with one function, instead of using the setter functions for each individual action. Automatic checking of the dimensions is done as well. The PID's system arguments is set to a simupy's MemorylessSystem object, containing the proper PID expressions. Both P, PI, PD and PID can be formed by setting the appropriate actions to None.
 
-        Parameters:
+        Parameters
         -----------
-            P : list or expression
-                A list of expressions or an expression defining ksi0.
-            I : list or expression or None
-                A list of expressions or an expression defining chi0. If I is None, the controller does not contain an I-action.
-            D : list or expression or None
-                A list of expressions or an expression defining psi0. If D is None, the controller does not contain a D-action.
+        P : list or expression
+            A list of expressions or an expression defining ksi0.
+        I : list or expression or None
+            A list of expressions or an expression defining chi0. If I is None, the controller does not contain an I-action.
+        D : list or expression or None
+            A list of expressions or an expression defining psi0. If D is None, the controller does not contain a D-action.
         """
         P = [P] if not isinstance(P, list) and fct is not None else P
         dim = len(P)

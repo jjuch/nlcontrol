@@ -32,49 +32,55 @@ class SystemBase():
     SystemBase(states, inputs, sys=None)
 
     Returns a base structure for a system with outputs, optional inputs, and optional states. The system is defines by it state equations (optional):
-        diff(x(t), t) = h(x(t), u(t), t)
+
+    .. math::
+        \\frac{dx(t)}{dt} = h(x(t), u(t), t)
+
     with x(t) the state vector, u(t) the input vector and t the time in seconds. Next, the output is given by the output equation:
+    
+    .. math::
         y(t) = g(x(t), u(t), t)
+
     A SystemBase object contains several basic functions to manipulate and simulate the system.
 
-    Parameters:
+    Parameters
     -----------
-        states : string or array-like
-            if `states` is a string, it is a comma-separated listing of the state names. If `states` is array-like it contains the states as sympy's dynamic symbols.
-        inputs : string or array-like
-            if `inputs` is a string, it is a comma-separated listing of the input names. If `inputs` is array-like it contains the inputs as sympy's dynamic symbols.
-        system : simupy's DynamicalSystem object (simupy.systems.symbolic), optional
-            the object containing output and state equations, default: None.
+    states : string or array-like
+        if `states` is a string, it is a comma-separated listing of the state names. If `states` is array-like it contains the states as sympy's dynamic symbols.
+    inputs : string or array-like
+        if `inputs` is a string, it is a comma-separated listing of the input names. If `inputs` is array-like it contains the inputs as sympy's dynamic symbols.
+    system : simupy's DynamicalSystem object (simupy.systems.symbolic), optional
+        the object containing output and state equations, default: None.
 
-    Examples:
+    Examples
     ---------
-        * Statefull system with one state, one input, and one output:
-            >>> from simupy.systems.symbolic import MemorylessSystem, DynamicalSystem
-            >>> from sympy.tensor.array import Array
-            >>> states = 'x'
-            >>> inputs = 'u'
-            >>> sys = SystemBase(states, inputs)
-            >>> x, xdot, u = sys.create_variables()
-            >>> sys.system = DynamicalSystem(state_equation=Array([-x + u1]), state=x, output_equation=x, input_=u1)
+    * Statefull system with one state, one input, and one output:
+        >>> from simupy.systems.symbolic import MemorylessSystem, DynamicalSystem
+        >>> from sympy.tensor.array import Array
+        >>> states = 'x'
+        >>> inputs = 'u'
+        >>> sys = SystemBase(states, inputs)
+        >>> x, xdot, u = sys.create_variables()
+        >>> sys.system = DynamicalSystem(state_equation=Array([-x + u1]), state=x, output_equation=x, input_=u1)
 
-        * Statefull system with two states, one input, and two outputs:
-            >>> states = 'x1, x2'
-            >>> inputs = 'u'
-            >>> sys = SystemBase(states, inputs)
-            >>> x1, x2, x1dot, x2dot, u = sys.create_variables()
-            >>> sys.system = DynamicalSystem(state_equation=Array([-x1 + x2**2 + u, -x2 + 0.5 * x1]), state=Array([x1, x2]), output_equation=Array([x1 * x2, x2]), input_=u)
+    * Statefull system with two states, one input, and two outputs:
+        >>> states = 'x1, x2'
+        >>> inputs = 'u'
+        >>> sys = SystemBase(states, inputs)
+        >>> x1, x2, x1dot, x2dot, u = sys.create_variables()
+        >>> sys.system = DynamicalSystem(state_equation=Array([-x1 + x2**2 + u, -x2 + 0.5 * x1]), state=Array([x1, x2]), output_equation=Array([x1 * x2, x2]), input_=u)
 
-        * Stateless system with one input:
-            >>> states = None
-            >>> inputs = 'w'
-            >>> sys = SystemBase(states, inputs)
-            >>> w = sys.create_variables()
-            >>> sys.system = MemorylessSystem(input_=Array([w]), output_equation= Array([5 * w]))
+    * Stateless system with one input:
+        >>> states = None
+        >>> inputs = 'w'
+        >>> sys = SystemBase(states, inputs)
+        >>> w = sys.create_variables()
+        >>> sys.system = MemorylessSystem(input_=Array([w]), output_equation= Array([5 * w]))
 
-        * Create a copy a SystemBase object `sys' and linearize around the working point of state [0, 0] and working point of input 0 and simulate:
-            >>> new_sys = SystemBase(sys.states, sys.inputs, sys.system)
-            >>> new_sys_lin = new_sys.linearize([0, 0], 0)
-            >>> new_sys_lin.simulation(10)
+    * Create a copy a SystemBase object `sys' and linearize around the working point of state [0, 0] and working point of input 0 and simulate:
+        >>> new_sys = SystemBase(sys.states, sys.inputs, sys.system)
+        >>> new_sys_lin = new_sys.linearize([0, 0], 0)
+        >>> new_sys_lin.simulation(10)
 
     """
     def __init__(self, states, inputs, sys=None):
@@ -121,6 +127,11 @@ class SystemBase():
 
     @property
     def system(self):
+        """
+        :obj:`simupy's DynamicalSystem`
+        
+        The system attribute of the SystemBase class. The system is defined using `simupy's DynamicalSystem <https://simupy.readthedocs.io/en/latest/api/symbolic_systems.html#simupy.systems.symbolic.DynamicalSystem>`__.
+        """
         return self.sys
 
     @system.setter
@@ -129,11 +140,21 @@ class SystemBase():
 
     @property
     def state_equation(self):
+        """
+        :obj:`expression` containing :obj:`dynamicsymbols`
+        
+        The state equation contains `sympy's dynamicsymbols <https://docs.sympy.org/latest/modules/physics/vector/api/functions.html#dynamicsymbols>`__.
+        """
         if self.states is not None:
             return self.system.state_equation
 
     @property
     def output_equation(self):
+        """
+        :obj:`expression` containing :obj:`dynamicsymbols`
+        
+        The output equation contains `sympy's dynamicsymbols <https://docs.sympy.org/latest/modules/physics/vector/api/functions.html#dynamicsymbols>`__.
+        """
         if hasattr(self.system, 'output_equation'):
             return self.system.output_equation
         elif hasattr(self.system, 'output_equation_function'):
@@ -142,6 +163,10 @@ class SystemBase():
 
     @property
     def block_configuration(self):
+        """
+        Returns info on the systems: the dimension of the inputs, the states, and the output. This property is mainly intended for debugging.
+        """
+
         sys = self.system
         print("""
         Inputs: {}
@@ -154,16 +179,16 @@ class SystemBase():
         """
         Return the correct format of the processed __init__input. For a one-element input a different approach to create the parameter is needed.
 
-        Parameters:
+        Parameters
         -----------
-            arg : string or array-like
-                an __init__ input string that needs to be processed. The variables are separated by ','. Or an NDimArray object, which is returned without any adaptations.
-            level : int
-                Level of differentiation of the returned function.
+        arg : string or array-like
+            an __init__ input string that needs to be processed. The variables are separated by ','. Or an NDimArray object, which is returned without any adaptations.
+        level : int
+            Level of differentiation of the returned function.
 
-        Returns:
+        Returns
         --------
-            matrix [Matrix]: a Matrix of dynamic symbols given by arg. 
+        matrix [Matrix]: a Matrix of dynamic symbols given by arg. 
         """
         if arg is None:
             return None
@@ -183,26 +208,27 @@ class SystemBase():
         """
         Returns a tuple with all variables. First the states are given, next the derivative of the states, and finally the inputs, optionally followed by the diffs of the inputs. All variables are sympy dynamic symbols.
 
-        Parameters:
+        Parameters
         -----------
-            input_diffs : boolean
-                also return the differentiated versions of the inputs, default: false.
-            states : array-like
-                An alternative list of states, used by more complex system models, optional. (see e.g. EulerLagrange.create_variables)
+        input_diffs : boolean
+            also return the differentiated versions of the inputs, default: false.
+        states : array-like
+            An alternative list of states, used by more complex system models, optional. (see e.g. EulerLagrange.create_variables)
 
-        Returns:
+        Returns
         --------
-            variables : tuple
-                all variables of the system.
+        variables : tuple
+            all variables of the system.
 
-        Examples:
-            * Return the variables of `sys', which has two states and two inputs and add a system to the SytemBase object:
-            >>> from sympy.tensor.array import Array
-            >>> from simupy.systems.symbolic import DynamicalSystem
-            >>> x1, x2, x1dot, x2dot, u1, u2, u1dot, u2dot = sys.create_variables(input_diffs=True)
-            >>> state_eq = Array([-5 * x1 + x2 + u1**2, x1/2 - x2**3 + u2])
-            >>> output_eq = Array([x1 + x2])
-            >>> sys.system = DynamicalSystem(input_=Array([u1, u2], state=Array([x1, x2], state_equation=state_eq, output_equation=output_eq)
+        Examples
+        --------
+        * Return the variables of `sys', which has two states and two inputs and add a system to the SytemBase object:
+        >>> from sympy.tensor.array import Array
+        >>> from simupy.systems.symbolic import DynamicalSystem
+        >>> x1, x2, x1dot, x2dot, u1, u2, u1dot, u2dot = sys.create_variables(input_diffs=True)
+        >>> state_eq = Array([-5 * x1 + x2 + u1**2, x1/2 - x2**3 + u2])
+        >>> output_eq = Array([x1 + x2])
+        >>> sys.system = DynamicalSystem(input_=Array([u1, u2], state=Array([x1, x2], state_equation=state_eq, output_equation=output_eq)
         """
         if states is None:
             states = self.states
@@ -240,22 +266,22 @@ class SystemBase():
         """
         In many cases a nonlinear system is observed around a certain working point. In the state space close to this working point it is save to say that a linearized version of the nonlinear system is a sufficient approximation. The linearized model allows the user to use linear control techniques to examine the nonlinear system close to this working point. A first order Taylor expansion is used to obtain the linearized system. A working point for the states is necessary, but the working point for the input is optional.
 
-        Parameters:
+        Parameters
         -----------
-            working_point_states : list or int
-                the state equations are linearized around the working point of the states.
-            working_point_inputs : list or int
-                the state equations are linearized around the working point of the states and inputs.
+        working_point_states : list or int
+            the state equations are linearized around the working point of the states.
+        working_point_inputs : list or int
+            the state equations are linearized around the working point of the states and inputs.
 
-        Returns:
+        Returns
         --------
-            sys_lin: SystemBase object 
-                with the same states and inputs as the original system. The state and output equation is linearized.
-            sys_control: control.StateSpace object
+        sys_lin: SystemBase object 
+            with the same states and inputs as the original system. The state and output equation is linearized.
+        sys_control: control.StateSpace object
 
-        Examples:
+        Examples
         ---------
-            * Print the state equation of the linearized system of `sys' around the state's working point x[1] = 1 and x[2] = 5 and the input's working point u = 2:
+        * Print the state equation of the linearized system of `sys' around the state's working point x[1] = 1 and x[2] = 5 and the input's working point u = 2:
             >>> sys_lin, sys_control = sys.linearize([1, 5], 2)
             >>> print('Linearized state equation: ', sys_lin.state_equation)
             
@@ -326,25 +352,25 @@ class SystemBase():
 
     def series(self, sys_append):
         """
-            A system is generated which is the result of a serial connection of two systems. The outputs of this object are connected to the inputs of the appended system and a new system is achieved which has the inputs of the current system and the outputs of the appended system. Notice that the dimensions of the output of the current system should be equal to the dimension of the input of the appended system.
+        A system is generated which is the result of a serial connection of two systems. The outputs of this object are connected to the inputs of the appended system and a new system is achieved which has the inputs of the current system and the outputs of the appended system. Notice that the dimensions of the output of the current system should be equal to the dimension of the input of the appended system.
 
-            Parameters:
-            -----------
-                sys_append : SystemBase object
-                    the system that is placed in a serial configuration. `sys_append' follows the current system.
+        Parameters
+        -----------
+        sys_append : SystemBase object
+            the system that is placed in a serial configuration. 'sys_append' follows the current system.
 
-            Returns:
-            --------
-                A SystemBase object with the serial system's equations.
+        Returns
+        --------
+        A SystemBase object with the serial system's equations.
 
-            Examples:
-            ---------
-                * Place `sys1' behind `sys2' in a serial configuration and show the inputs, states, state equations and output equations:
-                >>> series_sys = sys1.series(sys2)
-                >>> print('inputs: ', series_sys.system.input_)
-                >>> print('States: ', series_sys.system.state)
-                >>> print('State eq's: ', series_sys.system.state_equation)
-                >>> print('Output eq's: ', series_sys.system.output_equation)
+        Examples
+        ---------
+        * Place 'sys1' behind 'sys2' in a serial configuration and show the inputs, states, state equations and output equations:
+            >>> series_sys = sys1.series(sys2)
+            >>> print('inputs: ', series_sys.system.input_)
+            >>> print('States: ', series_sys.system.state)
+            >>> print('State eqs: ', series_sys.system.state_equation)
+            >>> print('Output eqs: ', series_sys.system.output_equation)
         """
         if (self.sys.dim_output != sys_append.sys.dim_input):
             error_text = '[SystemBase.series] Dimension of output of the first system is not equal to dimension of input of the second system.'
@@ -374,25 +400,25 @@ class SystemBase():
 
     def parallel(self, sys_append):
         """
-            A system is generated which is the result of a parallel connection of two systems. The inputs of this object are connected to the system that is placed in parallel and a new system is achieved with the output the sum of the outputs of both systems in parallel. Notice that the dimensions of the inputs and the outputs of both systems should be equal.
+        A system is generated which is the result of a parallel connection of two systems. The inputs of this object are connected to the system that is placed in parallel and a new system is achieved with the output the sum of the outputs of both systems in parallel. Notice that the dimensions of the inputs and the outputs of both systems should be equal.
 
-            Parameters:
-            -----------
-                sys_append : SystemBase object
-                    the system that is added in parallel.
+        Parameters
+        -----------
+        sys_append : SystemBase object
+            the system that is added in parallel.
 
-            Returns:
-            --------
-                A SystemBase object with the parallel system's equations.
+        Returns
+        --------
+        A SystemBase object with the parallel system's equations.
 
-            Examples:
-            ---------
-                * Place `sys2' in parallel with `sys1' and show the inputs, states, state equations and output equations:
-                >>> parallel_sys = sys1.parallel(sys2)
-                >>> print('inputs: ', parallel_sys.system.input_)
-                >>> print('States: ', parallel_sys.system.state)
-                >>> print('State eq's: ', parallel_sys.system.state_equation)
-                >>> print('Output eq's: ', parallel_sys.system.output_equation)
+        Examples
+        ---------
+        * Place 'sys2' in parallel with 'sys1' and show the inputs, states, state equations and output equations:
+            >>> parallel_sys = sys1.parallel(sys2)
+            >>> print('inputs: ', parallel_sys.system.input_)
+            >>> print('States: ', parallel_sys.system.state)
+            >>> print('State eqs: ', parallel_sys.system.state_equation)
+            >>> print('Output eqs: ', parallel_sys.system.output_equation)
         """
         if (self.sys.dim_input != sys_append.sys.dim_input):
             error_text = '[SystemBase.parallel] Dimension of the input of the first system is not equal to the dimension of the input of the second system.'
@@ -427,67 +453,69 @@ class SystemBase():
         Simulates the system in various conditions. It is possible to impose initial conditions on the states of the system. A specific input signal can be applied to the system to check its behavior. The results of the simulation are numerically available. Also, a plot of the states, inputs, and outputs is available. To simulate the system scipy's ode is used if the system has states. Both the option of variable time-step and fixed time step are available. If there are no states, a time signal is applied to the system.
         # TODO: output_signal -> a disturbance on the output signal.
 
-        Parameters:
+        Parameters
         -----------
-            tspan : float or list-like
-                the parameter defines the time vector for the simulation in seconds. An integer indicates the end time. A list-like object with two elements indicates the start and end time respectively. And more than two elements indicates at which time instances the system needs to be simulated.
-            number_of_samples : int, optional
-                number of samples in the case that the system is stateless and tspan only indicates the end and/or start time (span is length two or smaller), default: 100
-            initial_conditions : int, float, list-like object, optional
-                the initial conditions of the states of a statefull system. If none is given, all are zero, default: None
-            input_signals : SystemBase object
-                the input signal that is directly connected to the system's inputs. Preferably, the signals in nlcontrol.signals are used. If no input signal is specified and the system has inputs, all inputs are defaulted to zero, default: None
-            plot : boolean, optional
-                the plot boolean decides whether to show a plot of the inputs, states, and outputs, default: False
-            custom_integrator_options : dict, optional (default: None)
-                Specify specific integrator options top pass to ``integrator_class.set_integrator (scipy ode). The options are 'name', 'rtol', 'atol', 'nsteps', and 'max_step', which specify the integrator name, relative tolerance, absolute tolerance, number of steps, and maximal step size respectively. If no custom integrator options are specified the DEFAULT_INTEGRATOR_OPTIONS are used:
-                    {
-                        'name': 'dopri5',
-                        'rtol': 1e-6,
-                        'atol': 1e-12,
-                        'nsteps': 500,
-                        'max_step': 0.0
-                    }
-        Returns:
-        --------
-            A tuple:
-                -> statefull system : 
-                    t : ndarray
-                        time vector.
-                    x : ndarray
-                        state vectors.
-                    y : ndarray
-                        input and ouput vectors.
-                    res : SimulationResult object
-                        A class object which contains information on events, next to the above vectors.
-                -> stateless system :
-                    t : ndarray
-                        time vector.
-                    y : ndarray
-                        output vectors.
-                    u : ndarray
-                        input vectors. Is an empty list if the system has no inputs.
+        tspan : float or list-like
+            the parameter defines the time vector for the simulation in seconds. An integer indicates the end time. A list-like object with two elements indicates the start and end time respectively. And more than two elements indicates at which time instances the system needs to be simulated.
+        number_of_samples : int, optional
+            number of samples in the case that the system is stateless and tspan only indicates the end and/or start time (span is length two or smaller), default: 100
+        initial_conditions : int, float, list-like object, optional
+            the initial conditions of the states of a statefull system. If none is given, all are zero, default: None
+        input_signals : SystemBase object
+            the input signal that is directly connected to the system's inputs. Preferably, the signals in nlcontrol.signals are used. If no input signal is specified and the system has inputs, all inputs are defaulted to zero, default: None
+        plot : boolean, optional
+            the plot boolean decides whether to show a plot of the inputs, states, and outputs, default: False
+        custom_integrator_options : dict, optional (default: None)
+            Specify specific integrator options top pass to ``integrator_class.set_integrator (scipy ode). The options are 'name', 'rtol', 'atol', 'nsteps', and 'max_step', which specify the integrator name, relative tolerance, absolute tolerance, number of steps, and maximal step size respectively. If no custom integrator options are specified the DEFAULT_INTEGRATOR_OPTIONS are used:
+                {
+                    'name': 'dopri5',
+                    'rtol': 1e-6,
+                    'atol': 1e-12,
+                    'nsteps': 500,
+                    'max_step': 0.0
+                }
 
-        Examples:
+
+        Returns
+        --------
+        A tuple:
+            -> statefull system : 
+                t : ndarray
+                    time vector.
+                x : ndarray
+                    state vectors.
+                y : ndarray
+                    input and ouput vectors.
+                res : SimulationResult object
+                    A class object which contains information on events, next to the above vectors.
+            -> stateless system :
+                t : ndarray
+                    time vector.
+                y : ndarray
+                    output vectors.
+                u : ndarray
+                    input vectors. Is an empty list if the system has no inputs.
+
+        Examples
         ---------
-            * A simulation of 20 seconds of the statefull system `sys' for a set of initial conditions [x0_0, x1_0, x2_0] and plot the results:
+        * A simulation of 20 seconds of the statefull system 'sys' for a set of initial conditions [x0_0, x1_0, x2_0] and plot the results:
             >>> init_cond = [0.3, 5.7, 2]
             >>> t, x, y, u, res = sys.simulation(20, initial_conditions=init_cond)
 
-            * A simulation from second 2 to 18 of the statefull system `sys' for an input signal, which is a step from 0.4 to 1.3 at second 5 for input 1 and from 0.9 to 1.1 at second 7. Use 1000 nsteps for the integrator. No plot is required:
+        * A simulation from second 2 to 18 of the statefull system 'sys' for an input signal, which is a step from 0.4 to 1.3 at second 5 for input 1 and from 0.9 to 1.1 at second 7. Use 1000 nsteps for the integrator. No plot is required:
             >>> from nlcontrol.signals import step
             >>> step_signal = step(step_times=[5, 7], begin_values=[0.4, 0.9], end_values=[1.3, 11])
             >>> integrator_options = {'nsteps': 1000}
             >>> t, x, y, u, res = sys.simulation([2, 18], input_signals=step_signal, custom_integrator_options=integrator_options)
 
-            * Plot the stateless signal step from previous example for a custom time axis (a time axis going from 3 seconds to 20 seconds with 1000 equidistant samples in between):
+        * Plot the stateless signal step from previous example for a custom time axis (a time axis going from 3 seconds to 20 seconds with 1000 equidistant samples in between):
             >>> import numpy as np
             >>> time_axis = np.linspace(3, 20, 1000)
             >>> t, y, _ = step_signal.simulation(time_axis, plot=True)
             Or
             >>> t, y, _ = step_signal.simulation([3, 20], number_of_samples=1000, plot=True)
 
-            * Simulate the stateless system `sys_stateless' with input signal step_signal from the previous examples for 40 seconds with 1500 samples in between and plot:
+        * Simulate the stateless system 'sys_stateless' with input signal step_signal from the previous examples for 40 seconds with 1500 samples in between and plot:
             >>> t, y, u = sys_stateless.simulation(40, number_of_samples=1500, input_signals=step_signal, plot=True)
         """
         base_system = self.__copy__()
