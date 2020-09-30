@@ -466,10 +466,10 @@ class SystemBase():
         plot : boolean, optional
             the plot boolean decides whether to show a plot of the inputs, states, and outputs, default: False
         custom_integrator_options : dict, optional (default: None)
-            Specify specific integrator options top pass to ``integrator_class.set_integrator (scipy ode). The options are 'name', 'rtol', 'atol', 'nsteps', and 'max_step', which specify the integrator name, relative tolerance, absolute tolerance, number of steps, and maximal step size respectively. If no custom integrator options are specified the ``DEFAULT_INTEGRATOR_OPTIONS`` are used:
+            Specify specific integrator options top pass to integrator_class.set_integrator (scipy ode)`. The options are 'name', 'rtol', 'atol', 'nsteps', and 'max_step', which specify the integrator name, relative tolerance, absolute tolerance, number of steps, and maximal step size respectively. If no custom integrator options are specified the ``DEFAULT_INTEGRATOR_OPTIONS`` are used:
 
             .. code-block:: json
-            
+
                 {
                     'name': 'dopri5',
                     'rtol': 1e-6,
