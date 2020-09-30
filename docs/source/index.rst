@@ -5,12 +5,15 @@ Nlcontrol is a comprehensive library for simulating nonlinear control loops with
 
 The toolbox is far from complete, so contribute your own systems and controllers, based on the base classes. This allows easy integration in the closed loop class.
 
+.. note:: This module is originally developed in the Dynamical Systems & Control group of Ghent University.
+
 .. toctree::
    :maxdepth: 2
    :caption: contents:
    
    getStarted/index
    api/index
+   contribute/index
    license
 
 

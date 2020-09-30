@@ -30,12 +30,28 @@ Current Release
 
 * **2020-09-01** `nlcontrol-1.0.3.tar.gz`_
 
-.. _`gdal-3.1.3.tar.gz`: https://github.com/jjuch/nlcontrol/releases/download/v1.0.3/nlcontrol-1.0.3.tar.gz
+.. _`nlcontrol-1.0.3.tar.gz`: https://github.com/jjuch/nlcontrol/releases/download/v1.0.3/nlcontrol-1.0.3.tar.gz
 
 Past Releases
 ^^^^^^^^^^^^^^
 
 *None*
+
+
+.. _source:
+
+Development Source
+^^^^^^^^^^^^^^^^^^^
+
+The main repository for `nlcontrol` is located on github at
+https://github.com/jjuch/nlcontrol.
+
+You can obtain a copy of the active source code by issuing the following
+command
+
+::
+
+    git clone https://github.com/jjuch/nlcontrol.git
 
 
 
@@ -48,4 +64,4 @@ Import the module in your Python code by using the following statement::
 
 To import specific parts of the `nlcontrol` module use the following statement::
     
-    from nlcontrol import < *what you want to import* >
+    from nlcontrol import < *what-you-want-to-import* >
