@@ -17,68 +17,75 @@ class ClosedLoop():
 
     The object contains a closed loop configuration using BlockDiagram objects of the simupy module. The closed loop systems is given by the following block scheme:
 
-                 u   ----------    w
-        ----------->|  System  |----------->
-        |            ----------       |
+    .. aafig::
+        :aspect: 75
+        :scale: 100
+        :proportional:
+        :textual:
+
+                 u  +----------+    w
+        +---------->+  System  +------+---->
+        |           +----------+      |
         |                             |     
-        |  ----     --------------    |
-        --| -1 |<--|  Controller  |<---
-           ----     --------------
+        | +----+   +--------------+   |
+        +-+ -1 +<--+  Controller  +<--+
+          +----+   +--------------+
     
 
-    Parameters:
+    Parameters
     -----------
-        system : SystemBase object or list of SystemBase objects
-            A state-full or state-less system. The number of inputs should be equal to the number of controller outputs.
-        controller : ControllerBase object or list of ControllerBase objects
-            A state-full or state-less controller. The number of inputs should be equal to the number of system outputs..
+    system : :class:`Systembase` or :obj:`list` of :class:`Systembase`
+        A state-full or state-less system. The number of inputs should be equal to the number of controller outputs.
+    controller : :obj:`ControllerBase` or :obj:`list` of :obj:`ControllerBase`
+        A state-full or state-less controller. The number of inputs should be equal to the number of system outputs.
 
-    Examples:
+    Examples
     ---------
-        * Create a closed-loop object of SystemBase object 'sys', which uses the Euler-Lagrange formulation, and ControllerBase object 'contr' containing a PID and a DynamicController object in parallel.
-            >>> from nlcontrol import PID, DynamicController, EulerLagrange
-
-            Define the system:
-            >>> states = 'x1, x2'
-            >>> inputs = 'u1, u2'
-            >>> sys = EulerLagrange(states, inputs)
-            >>> x1, x2, dx1, dx2, u1, u2, du1, du2 = sys.create_variables(input_diffs=True)
-            >>> M = [[1, x1*x2],
-                [x1*x2, 1]]
-            >>> C = [[2*dx1, 1 + x1],
-                [x2 - 2, 3*dx2]]
-            >>> K = [x1, 2*x2]
-            >>> F = [u1, 0]
-            >>> sys.define_system(M, C, K, F)
-
-            Define the DynamicController controller:
-            >>> st = 'z1, z2'
-            >>> dyn_contr = DynamicController(states=st, inputs=sys.minimal_states)
-            >>> z1, z2, z1dot, z2dot, w, wdot = contr.create_variables()
-            >>> a0, a1, k1 = 12.87, 6.63, 0.45
-            >>> b0 = (48.65 - a1) * k1
-            >>> b1 = (11.79 - 1) * k1
-            >>> A = [[0, 1], [-a0, -a1]]
-            >>> B = [[0], [1]]
-            >>> C = [[b0], [b1]]
-            >>> f = lambda x: x**2
-            >>> eta = [[w + wdot], [(w + wdot)**2]]
-            >>> phi = [[z1], [z2dot]]
-            >>> contr.define_controller(A, B, C, f, eta, phi)
-
-            Define the PID:
-            >>> kp = 1
-            >>> kd = 1
-            >>> ksi0 = [kp * x1, kp * x2]
-            >>> psi0 = [kd * dx1, kd * dx2]
-            >>> pid = PID(ksi0, None, psi0, inputs=sys.minimal_states)
-
-            Create the controller:
-            >>> contr = dyn_contr.parallel(pid)
-
-            Create a closed-loop object:
-            >>> CL = ClosedLoop(sys, contr)
+    * Create a closed-loop object of SystemBase object 'sys', which uses the Euler-Lagrange formulation, and ControllerBase object 'contr' containing a PID and a DynamicController object in parallel.
+        >>> from nlcontrol import PID, DynamicController, EulerLagrange
+        >>> $
+        >>> # Define the system:
+        >>> states = 'x1, x2'
+        >>> inputs = 'u1, u2'
+        >>> sys = EulerLagrange(states, inputs)
+        >>> x1, x2, dx1, dx2, u1, u2, du1, du2 = sys.create_variables(input_diffs=True)
+        >>> M = [[1, x1*x2],
+            [x1*x2, 1]]
+        >>> C = [[2*dx1, 1 + x1],
+            [x2 - 2, 3*dx2]]
+        >>> K = [x1, 2*x2]
+        >>> F = [u1, 0]
+        >>> sys.define_system(M, C, K, F)
+        >>> $
+        >>> # Define the DynamicController controller:
+        >>> st = 'z1, z2'
+        >>> dyn_contr = DynamicController(states=st, inputs=sys.minimal_states)
+        >>> z1, z2, z1dot, z2dot, w, wdot = contr.create_variables()
+        >>> a0, a1, k1 = 12.87, 6.63, 0.45
+        >>> b0 = (48.65 - a1) * k1
+        >>> b1 = (11.79 - 1) * k1
+        >>> A = [[0, 1], [-a0, -a1]]
+        >>> B = [[0], [1]]
+        >>> C = [[b0], [b1]]
+        >>> f = lambda x: x**2
+        >>> eta = [[w + wdot], [(w + wdot)**2]]
+        >>> phi = [[z1], [z2dot]]
+        >>> contr.define_controller(A, B, C, f, eta, phi)
+        >>> $
+        >>> # Define the PID:
+        >>> kp = 1
+        >>> kd = 1
+        >>> ksi0 = [kp * x1, kp * x2]
+        >>> psi0 = [kd * dx1, kd * dx2]
+        >>> pid = PID(ksi0, None, psi0, inputs=sys.minimal_states)
+        >>> $
+        >>> # Create the controller:
+        >>> contr = dyn_contr.parallel(pid)
+        >>> $
+        >>> # Create a closed-loop object:
+        >>> CL = ClosedLoop(sys, contr)
     """
+
     def __init__(self, system=None, controller=None):
         self.system = None
         self.controller = controller
@@ -97,6 +104,11 @@ class ClosedLoop():
     
     @property
     def forward_system(self):
+        """
+        :class:`Systembase`
+
+        The system in the forward path of the closed loop.
+        """
         return self.system
     
     @forward_system.setter 
@@ -112,6 +124,11 @@ class ClosedLoop():
 
     @property
     def backward_system(self):
+        """
+        :obj:`ControllerBase`
+
+        The controller in the backward path of the closed loop.
+        """
         return self.controller
     
     @backward_system.setter 
@@ -129,10 +146,10 @@ class ClosedLoop():
         '''
         Create a SystemBase object of the closed-loop system.
 
-        Returns:
+        Returns
         --------
-            system : SystemBase
-                A Systembase object of the closed-loop system.
+        system : SystemBase
+            A Systembase object of the closed-loop system.
         '''
         states, state_equations = self.__get_states__()
         system_dyn = DynamicalSystem(state_equation=Array(state_equations), state=states, output_equation=self.system.output_equation)
@@ -143,12 +160,12 @@ class ClosedLoop():
         '''
         Contcatenate the states vector of the system and the controller.
 
-        Returns:
+        Returns
         --------
-            states : list
-                first the states of the system and next the states of the controller.
-            state_equations : list
-                first the state equations of the system and next the state equations of the controller.
+        states : list
+            first the states of the system and next the states of the controller.
+        state_equations : list
+            first the state equations of the system and next the state equations of the controller.
         '''
         states = []
         state_equations = []
@@ -188,20 +205,20 @@ class ClosedLoop():
         '''
         In many cases a nonlinear closed-loop system is observed around a certain working point. In the state space close to this working point it is save to say that a linearized version of the nonlinear system is a sufficient approximation. The linearized model allows the user to use linear control techniques to examine the nonlinear system close to this working point. A first order Taylor expansion is used to obtain the linearized system. A working point for the states needs to be provided.
 
-        Parameters:
+        Parameters
         -----------
-            working_point_states : list or int
-                the state equations are linearized around the working point of the states.
+        working_point_states : list or int
+            the state equations are linearized around the working point of the states.
 
-        Returns:
+        Returns
         --------
-            sys_lin: SystemBase object 
-                with the same states and inputs as the original system. The state and output equation is linearized.
-            sys_control: control.StateSpace object
+        sys_lin: SystemBase object 
+            with the same states and inputs as the original system. The state and output equation is linearized.
+        sys_control: control.StateSpace object
 
-        Examples:
+        Examples
         ---------
-            * Print the state equation of the linearized closed-loop object of `CL' around the state's working point x[1] = 1 and x[2] = 5:
+        * Print the state equation of the linearized closed-loop object of `CL' around the state's working point x[1] = 1 and x[2] = 5:
             >>> CL_lin, CL_control = CL.linearize([1, 5])
             >>> print('Linearized state equation: ', CL_lin.state_equation)
         '''
@@ -212,19 +229,19 @@ class ClosedLoop():
         """
         Create a closed loop block diagram with negative feedback. The loop contains a list of SystemBase objects in the forward path and ControllerBase objects in the backward path.
 
-        Parameters:
+        Parameters
         -----------
-            forward_systems : list, optional (at least one system should be present in the loop)
-                A list of SystemBase objects. All input and output dimensions should match.
-            backward_systems: list, optional (at least one system should be present in the loop)
-                A list of ControllerBase objects. All input and output dimensions should match.
+        forward_systems : list, optional (at least one system should be present in the loop)
+            A list of SystemBase objects. All input and output dimensions should match.
+        backward_systems: list, optional (at least one system should be present in the loop)
+            A list of ControllerBase objects. All input and output dimensions should match.
 
-        Returns:
+        Returns
         --------
-            BD : a simupy's BlockDiagram object 
-                contains the configuration of the closed-loop.
-            indices : dict
-                information on the ranges of the states and outputs in the output vectors of a simulation dataset.
+        BD : a simupy's BlockDiagram object 
+            contains the configuration of the closed-loop.
+        indices : dict
+            information on the ranges of the states and outputs in the output vectors of a simulation dataset.
         """
         if (forward_systems is None):
             if (self.system is None):
@@ -315,34 +332,39 @@ class ClosedLoop():
         Simulates the closed-loop in various conditions. It is possible to impose initial conditions on the states of the system. The results of the simulation are numerically available. Also, a plot of the states and outputs is available. To simulate the system scipy's ode is used. 
         # TODO: output_signal -> a disturbance on the output signal.
 
-        Parameters:
+        Parameters
         -----------
-            tspan : float or list-like
-                the parameter defines the time vector for the simulation in seconds. An integer indicates the end time. A list-like object with two elements indicates the start and end time respectively. And more than two elements indicates at which time instances the system needs to be simulated.
-            initial_conditions : int, float, list-like object
-                the initial conditions of the states of a statefull system. If none is given, all are zero, default: None
-            plot : boolean, optional
-                the plot boolean decides whether to show a plot of the inputs, states, and outputs, default: False
-            custom_integrator_options : dict, optional (default: None)
-                Specify specific integrator options top pass to ``integrator_class.set_integrator (scipy ode). The options are 'name', 'rtol', 'atol', 'nsteps', and 'max_step', which specify the integrator name, relative tolerance, absolute tolerance, number of steps, and maximal step size respectively. If no custom integrator options are specified the DEFAULT_INTEGRATOR_OPTIONS are used:
-                    {
-                        'name': 'dopri5',
-                        'rtol': 1e-6,
-                        'atol': 1e-12,
-                        'nsteps': 500,
-                        'max_step': 0.0
-                    }
-        Returns:
+        tspan : float or list-like
+            the parameter defines the time vector for the simulation in seconds. An integer indicates the end time. A list-like object with two elements indicates the start and end time respectively. And more than two elements indicates at which time instances the system needs to be simulated.
+        initial_conditions : int, float, list-like object
+            the initial conditions of the states of a statefull system. If none is given, all are zero, default: None
+        plot : boolean, optional
+            the plot boolean decides whether to show a plot of the inputs, states, and outputs, default: False
+        custom_integrator_options : dict, optional (default: None)
+            Specify specific integrator options to pass to `integrator_class.set_integrator (scipy ode)`. The options are 'name', 'rtol', 'atol', 'nsteps', and 'max_step', which specify the integrator name, relative tolerance, absolute tolerance, number of steps, and maximal step size respectively. If no custom integrator options are specified the ``DEFAULT_INTEGRATOR_OPTIONS`` are used:
+
+            .. code-block:: json
+
+                {
+                    "name": "dopri5",
+                    "rtol": 1e-6,
+                    "atol": 1e-12,
+                    "nsteps": 500,
+                    "max_step": 0.0
+                }
+        
+        
+        Returns
         --------
-            t : array
-                time vector
-            data : tuple
-                four data vectors, the states and the outputs of the systems in the forward path and the states and outputs of the systems in the backward path.
+        t : array
+            time vector
+        data : tuple
+            four data vectors, the states and the outputs of the systems in the forward path and the states and outputs of the systems in the backward path.
 
 
-        Examples:
+        Examples
         ---------
-            * A simulation of 5 seconds of the statefull SystemBase object `sys' in the forward path and the statefull ControllerBase object `contr' in the backward path for a set of initial conditions [x0_0, x1_0] and plot the results:
+        * A simulation of 5 seconds of the statefull SystemBase object 'sys' in the forward path and the statefull ControllerBase object `contr' in the backward path for a set of initial conditions [x0_0, x1_0] and plot the results:
             >>> CL = ClosedLoop(sys, contr)
             >>> t, data = CL.simulation(5, [x0_0, x1_0], custom_integrator_options={'nsteps': 1000}, plot=True)
             >>> (x_p, y_p, x_c, y_c) = data
@@ -365,7 +387,6 @@ class ClosedLoop():
                 'max_step': 0.0
             }
 
-        # BD, indices = self.createBlockDiagram()
         self.system.system.initial_condition = initial_conditions
         res = self.block_diagram.simulate(tspan, integrator_options=integrator_options)
         
