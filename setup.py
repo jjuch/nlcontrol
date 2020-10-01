@@ -17,12 +17,14 @@ exec(open('nlcontrol/version.py').read())
 with open(path.join(here, 'README.md'), encoding='utf-8') as f:
     long_description = f.read()
 
+DOCSTRING = long_description.split('\n')
+
 setup(
     name='nlcontrol',
     version=__version__,
     description='A toolbox to simulate and analyse nonlinear systems in a control context.',
-    long_description=long_description,
     long_description_content_type='text/markdown',
+    long_description=DOCSTRING[3],
     keywords='control systems nonlinear simulation',
     url='https://github.ugent.be/jjuchem/nlcontrol',
     author='Jasper Juchem',

@@ -28,9 +28,9 @@ If you use `pip` you can install the package as follows::
 Current Release
 ^^^^^^^^^^^^^^^^
 
-* **2020-09-01** `nlcontrol-1.0.3.tar.gz`_
+* **2020-10-01** `nlcontrol-1.0.1.tar.gz`_
 
-.. _`nlcontrol-1.0.3.tar.gz`: https://github.com/jjuch/nlcontrol/releases/download/v1.0.3/nlcontrol-1.0.3.tar.gz
+.. _`nlcontrol-1.0.1.tar.gz`: https://github.com/jjuch/nlcontrol/releases/download/v1.0.1/nlcontrol-1.0.1.tar.gz
 
 Past Releases
 ^^^^^^^^^^^^^^
