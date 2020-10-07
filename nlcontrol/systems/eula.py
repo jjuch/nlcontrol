@@ -339,6 +339,7 @@ class EulerLagrange(SystemBase):
         result : sympy array object
             the state equation for each element in self.states
         """
+        # \\TODO: Convert self.states to list before slicing, to be compatible with sympy > 1.4
         minimal_dstates = Matrix(self.states[1::2])
         dstates = Matrix(self.dstates[0::2])
         substitution = dict(zip(dstates, minimal_dstates))

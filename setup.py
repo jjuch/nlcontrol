@@ -43,7 +43,7 @@ setup(
     install_requires=[
         'numpy>=1.17.0',
         'scipy>=1.3.0',
-        'sympy>=1.4.0',
+        'sympy==1.4.0',
         'control>=0.8.1',
         'simupy>=1.0.0',
         'matplotlib>=3.1.1'
