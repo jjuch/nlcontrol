@@ -26,7 +26,7 @@ setup(
     long_description_content_type='text/markdown',
     long_description=DOCSTRING[3],
     keywords='control systems nonlinear simulation',
-    url='https://github.ugent.be/jjuchem/nlcontrol',
+    url='https://github.com/jjuch/nlcontrol',
     author='Jasper Juchem',
     author_email='Jasper.Juchem@UGent.be',
     classifiers=[
