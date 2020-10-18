@@ -38,7 +38,7 @@ print(labels_sys)
 # Drawing
 bbox_sys = dict({'edgecolor': 'black', 'facecolor': 'white', 'alpha': 0.5, 'boxstyle': 'square,pad=1.1'})
 bbox_sum = dict({'edgecolor': 'black', 'facecolor': 'white', 'boxstyle': 'circle,pad=1.1'})
-pos = {'1a': (1.8, 2), 1: (2, 2), '1b': (2.2, 2), '2a': (2.2, 1), 2: (2, 1), '2b': (1.8, 1), 3: (1, 2)}
+pos = {'1a': (1.8, 0.5), 1: (2, 0.5), '1b': (2.2, 0.5), '2a': (2.2, 0), 2: (2, 0), '2b': (1.8, 0), 3: (1, 0.5)}
 
 # nx.draw_networkx(G, 
 #     pos=pos, 
@@ -62,10 +62,11 @@ pos = {'1a': (1.8, 2), 1: (2, 2), '1b': (2.2, 2), '2a': (2.2, 1), 2: (2, 1), '2b
 #     arrows=False)
 # plt.show()
 
-# Draw nodes
+# Create figure
 fig = plt.figure()
 ax = fig.add_subplot(111)
 
+# Draw nodes
 nx.draw_networkx_nodes(G,
     ax=ax,
     pos=pos,
@@ -99,5 +100,25 @@ nx.draw_networkx_labels(G,
     pos=pos,
     labels=labels_sum,
     bbox=bbox_sum)
+
+transf = ax.transData.inverted()
+# Get dimensions of y-axis in pixels
+y1, y2 = ax.get_window_extent().get_points()[:, 1]
+# Get limits in axis coords
+ymin, ymax = ax.get_ylim()
+# Get unit scale
+yscale = (y2-y1)/(ymax-ymin)
+padd_in_pix = 1.1*yscale
+print(padd_in_pix)
+for el in ax.get_children():
+    if type(el) == type(plt.Text()):
+        bb = el.get_window_extent(fig.canvas.get_renderer())
+        print(bb)
+        print(el, ': ', bb.transformed(transf))
+        # TODO: find padding distance in units per point times the padding.
+
+nx.draw_networkx_edges(G,
+    ax=ax,
+    pos=pos)
 
 plt.show()
