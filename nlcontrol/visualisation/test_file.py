@@ -15,7 +15,7 @@ G.add_node(2, type='sys', label='controller')
 G.add_node('2b', type='conn')
 G.add_node(3, type='sum', label='-1')
 
-print(list(G.nodes(data=True)))
+# print(list(G.nodes(data=True)))
 
 # Define edges
 G.add_edges_from([('1a', 1), (1, '1b'), ('1b', '2a'), ('2a', 2), (2, '2b'), ('2b', 3), (3, '1a')])
@@ -36,8 +36,9 @@ print(labels_sys)
 # print(list(G.nodes(data=True)))
 
 # Drawing
-bbox_sys = dict({'edgecolor': 'black', 'facecolor': 'white', 'alpha': 0.5, 'boxstyle': 'square,pad=1.1'})
-bbox_sum = dict({'edgecolor': 'black', 'facecolor': 'white', 'boxstyle': 'circle,pad=1.1'})
+pad = 1.1
+bbox_sys = dict({'edgecolor': 'black', 'facecolor': 'white', 'alpha': 0.5, 'boxstyle': 'square,pad={}'.format(pad)})
+bbox_sum = dict({'edgecolor': 'black', 'facecolor': 'white', 'boxstyle': 'circle,pad={}'.format(pad)})
 pos = {'1a': (1.8, 0.5), 1: (2, 0.5), '1b': (2.2, 0.5), '2a': (2.2, 0), 2: (2, 0), '2b': (1.8, 0), 3: (1, 0.5)}
 
 # nx.draw_networkx(G, 
@@ -64,7 +65,9 @@ pos = {'1a': (1.8, 0.5), 1: (2, 0.5), '1b': (2.2, 0.5), '2a': (2.2, 0), 2: (2, 0
 
 # Create figure
 fig = plt.figure()
-ax = fig.add_subplot(111)
+ax = fig.add_subplot(111, frame_on=False, aspect='auto')
+# ax.frame_on(False)
+# ax.set_autoscale_on(False)
 
 # Draw nodes
 nx.draw_networkx_nodes(G,
@@ -102,19 +105,32 @@ nx.draw_networkx_labels(G,
     bbox=bbox_sum)
 
 transf = ax.transData.inverted()
-# Get dimensions of y-axis in pixels
+pix_per_unit = ax.transData.transform([(0,1)])-ax.transData.transform((0,0))[1]
+# Get dimensions of axes in pixels
 y1, y2 = ax.get_window_extent().get_points()[:, 1]
+x1, x2 = ax.get_window_extent().get_points()[:, 0]
 # Get limits in axis coords
 ymin, ymax = ax.get_ylim()
+xmin, xmax = ax.get_xlim()
 # Get unit scale
-yscale = (y2-y1)/(ymax-ymin)
-padd_in_pix = 1.1*yscale
-print(padd_in_pix)
+yscale = (y2 - y1)/(ymax - ymin)
+xscale = (x2 - x1)/(xmax - xmin)
+
+renderer = fig.canvas.get_renderer()
+# pixel_per_points = renderer.points_to_pixels(14 * 1.1)
+# unit_per_points = pixel_per_points/yscale)
 for el in ax.get_children():
-    if type(el) == type(plt.Text()):
-        bb = el.get_window_extent(fig.canvas.get_renderer())
-        print(bb)
-        print(el, ': ', bb.transformed(transf))
+    if type(el) == type(plt.Text()) and el._bbox_patch is not None:
+        pixel_per_points = renderer.points_to_pixels(pad * el.get_fontsize())
+        pad_in_unit_per_points_y = pixel_per_points/yscale
+        pad_in_unit_per_points_x = pixel_per_points/xscale
+        print(pad_in_unit_per_points_x, ' : ', pad_in_unit_per_points_y)
+        
+        # Find the bounded box
+        bb = el.get_window_extent(renderer)
+        bbox_without_pad = bb.transformed(transf)
+        print(bbox_without_pad)
+        print(bbox_without_pad.x0 - pad_in_unit_per_points_x, " - ", bbox_without_pad.y0 - pad_in_unit_per_points_y)
         # TODO: find padding distance in units per point times the padding.
 
 nx.draw_networkx_edges(G,
