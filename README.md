@@ -1,5 +1,7 @@
 # NLCONTROL - Nonlinear Control toolbox
 
+[![Documentation Status](https://readthedocs.org/projects/nlcontrol/badge/?version=latest)](https://nlcontrol.readthedocs.io/en/latest/?badge=latest)
+
 ## Description
 A Python module providing a framework for Nonlinear control simulations. Base structures for dynamical systems and controllers allow an easy and flexible environment to simulate nonlinear control loops. Base classes are developed for easy integration in a closed-loop configuration. The goal is to obtain a wide library of systems and controllers, which allows users around the world to simulate their control loops.
 
