@@ -398,7 +398,7 @@ class EulerLagrangeController(DynamicController):
         Elastic en centrifugal forces.
     C1 : nonlinear_coefficient_matrix
         Coëfficient of the nonlinear functions.
-    nl : nonlinear_stiffness_fcts
+    nl : nonlinear_fcts
         Nonlinear functions of the controller.
     NA : gain_inputs
         Coëfficients of the position inputs.
@@ -472,7 +472,7 @@ class EulerLagrangeController(DynamicController):
         self.damping_matrix = Matrix(C0)
         self.stiffness_matrix = Matrix(K0)
         self.nonlinear_coefficient_matrix = Matrix(C1)
-        self.nonlinear_stiffness_fcts = f
+        self.nonlinear_fcts = f
         self.gain_inputs = Matrix(NA)
         self.gain_dinputs = Matrix(NB)
 
@@ -545,11 +545,11 @@ class EulerLagrangeController(DynamicController):
 
     
     @property
-    def nonlinear_stiffness_fcts(self):
+    def nonlinear_fcts(self):
         return self._nl
 
-    @nonlinear_stiffness_fcts.setter
-    def nonlinear_stiffness_fcts(self, matrix:Matrix):
+    @nonlinear_fcts.setter
+    def nonlinear_fcts(self, matrix:Matrix):
         if len(matrix) == len(self.minimal_states):
             Z = zeros(len(self.minimal_states), len(matrix))
             if self.nl_stiffness:
@@ -568,7 +568,7 @@ class EulerLagrangeController(DynamicController):
                     raise AssertionError(error_text)
             self._nl = Matrix(completed_f)
         else:
-            error_text = '[EulerLagrangeController.nonlinear_stiffness_fcts (setter)] The stiffness matrix should have the same row dimension as the number of states.'
+            error_text = '[EulerLagrangeController.nonlinear_fcts (setter)] The stiffness matrix should have the same row dimension as the number of states.'
             raise ValueError(error_text)
 
     @property
@@ -665,10 +665,10 @@ class EulerLagrangeController(DynamicController):
         A = Matrix(BlockMatrix([[Z, In], [K0_D0, C0_D0]]))
         
         C1_D0 = D0_inv * self.nonlinear_coefficient_matrix
-        Z = zeros(dim_states, len(self.nonlinear_stiffness_fcts))
+        Z = zeros(dim_states, len(self.nonlinear_fcts))
         B = Matrix(BlockMatrix([[Z], [C1_D0]]))
 
-        f = self.nonlinear_stiffness_fcts
+        f = self.nonlinear_fcts
 
         Z = zeros(dim_states, len(f))
         if self.nl_stiffness:
