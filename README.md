@@ -19,7 +19,7 @@ It provides:
 - tools to build a closed-loop with said base classes
 - the capability to easily expand to your application
 
-The `nlcontrol` module was originally within the Dynamical Systems & Control group of Ghent University.
+The `nlcontrol` module was originally created within the Dynamical Systems & Control group of Ghent University.
 
 Testing:
 
