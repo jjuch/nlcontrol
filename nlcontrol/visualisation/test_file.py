@@ -32,7 +32,7 @@ remainder_nodes = list(set(G.nodes()) - set(system_nodes) - set(sum_nodes) - set
 labels_sys = {n: G.nodes[n]['label'] for n in system_nodes}
 labels_sum = {n: G.nodes[n]['label'] for n in sum_nodes}
 
-print(labels_sys)
+# print(labels_sys)
 # print(list(G.nodes(data=True)))
 
 # Drawing
@@ -41,33 +41,38 @@ bbox_sys = dict({'edgecolor': 'black', 'facecolor': 'white', 'alpha': 0.5, 'boxs
 bbox_sum = dict({'edgecolor': 'black', 'facecolor': 'white', 'boxstyle': 'circle,pad={}'.format(pad)})
 pos = {'1a': (1.8, 0.5), 1: (2, 0.5), '1b': (2.2, 0.5), '2a': (2.2, 0), 2: (2, 0), '2b': (1.8, 0), 3: (1, 0.5)}
 
-# nx.draw_networkx(G, 
-#     pos=pos, 
-#     nodelist=system_nodes,
-#     node_color='white', 
-#     with_labels=True, 
-#     bbox=bbox_sys, 
-#     labels=labels_sys,
-#     arrows=False)
-# nx.draw_networkx(G,
-#     pos=pos, 
-#     nodelist=sum_nodes, 
-#     with_labels=True, 
-#     bbox=bbox_sum, 
-#     labels=labels_sum)
-# nx.draw_networkx(G,
-#     pos=pos, 
-#     nodelist=conn_nodes, 
-#     with_labels=False,
-#     node_size=0,
-#     arrows=False)
-# plt.show()
 
 # Create figure
 fig = plt.figure()
 ax = fig.add_subplot(111, frame_on=False, aspect='auto')
 # ax.frame_on(False)
 # ax.set_autoscale_on(False)
+
+class SystemBlock():
+    def __init__(self, bbox, padx, pady, orientation='right'):
+        self.bbox = bbox
+        if orientation in ('right', 'left'):
+            self.orientation=orientation
+        else:
+            error_text = "[SystemBlock]: The orientation is a string with the value 'left' or 'right'"
+            raise ValueError(error_text)
+        self.x0, self.y0, self.x1, self.y1 = self.get_text_corners()
+        print('SystemBlock: ', self.get_port_coords(padx))
+        self.in_coord, self.ex_coord = self.get_port_coords(padx)
+
+    def get_text_corners(self):
+        return self.bbox.x0, self.bbox.y0, self.bbox.x1, self.bbox.y1
+
+    def get_port_coords(self, padx):
+        left_coord = self.x0 - padx, (self.y1 - self.y0) / 2 + self.y0
+        right_coord = self.x1 + padx, (self.y1 - self.y0) / 2 + self.y0
+        if self.orientation == 'right':
+            in_coord = left_coord
+            out_coord = right_coord
+        else:
+            in_coord = right_coord
+            out_coord = left_coord
+        return left_coord, right_coord
 
 # Draw nodes
 nx.draw_networkx_nodes(G,
@@ -124,14 +129,15 @@ for el in ax.get_children():
         pixel_per_points = renderer.points_to_pixels(pad * el.get_fontsize())
         pad_in_unit_per_points_y = pixel_per_points/yscale
         pad_in_unit_per_points_x = pixel_per_points/xscale
-        print(pad_in_unit_per_points_x, ' : ', pad_in_unit_per_points_y)
+        # print(pad_in_unit_per_points_x, ' : ', pad_in_unit_per_points_y)
         
         # Find the bounded box
         bb = el.get_window_extent(renderer)
         bbox_without_pad = bb.transformed(transf)
-        print(bbox_without_pad)
-        print(bbox_without_pad.x0 - pad_in_unit_per_points_x, " - ", bbox_without_pad.y0 - pad_in_unit_per_points_y)
+        # print(bbox_without_pad)
+        # print(bbox_without_pad.x0 - pad_in_unit_per_points_x, " - ", bbox_without_pad.y0 - pad_in_unit_per_points_y)
         # TODO: find padding distance in units per point times the padding.
+        sys = SystemBlock(bbox_without_pad, pad_in_unit_per_points_x, pad_in_unit_per_points_y)
 
 nx.draw_networkx_edges(G,
     ax=ax,
