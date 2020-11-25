@@ -398,8 +398,12 @@ class EulerLagrangeController(DynamicController):
         Elastic en centrifugal forces.
     C1 : nonlinear_coefficient_matrix
         Coëfficient of the nonlinear functions.
+    type : nl_stiffness
+        A boolean indicating whether a nonlinear stiffness (True) or damping (False) is present.
     nl : nonlinear_fcts
         Nonlinear functions of the controller.
+    nl_call : nonlinear_fcts_callable
+        Callable lambda functions of the nonlinear functions.
     NA : gain_inputs
         Coëfficients of the position inputs.
     NB : gain_dinputs
@@ -451,6 +455,7 @@ class EulerLagrangeController(DynamicController):
             raise ValueError(error_text)
 
         self._nl = None
+        self._nl_call = None
         self._NA = None
         self._NB = None
         self.inputs = inputs
@@ -542,7 +547,13 @@ class EulerLagrangeController(DynamicController):
             error_text = '[EulerLagrangeController.stiffness_matrix (setter)] The stiffness matrix should be squared and should have the same dimension as the states p.'
             raise ValueError(error_text)
 
+    @property
+    def nonlinear_fcts_callable(self):
+        return self._nl_call
 
+    @nonlinear_fcts_callable.setter
+    def nonlinear_fcts_callable(self, matrix:Matrix):
+        self._nl_call = matrix
     
     @property
     def nonlinear_fcts(self):
@@ -550,6 +561,7 @@ class EulerLagrangeController(DynamicController):
 
     @nonlinear_fcts.setter
     def nonlinear_fcts(self, matrix:Matrix):
+        self.nonlinear_fcts_callable = matrix
         if len(matrix) == len(self.minimal_states):
             Z = zeros(len(self.minimal_states), len(matrix))
             if self.nl_stiffness:
