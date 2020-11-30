@@ -1,11 +1,12 @@
 from bokeh.io import show, output_file, curdoc, save
 import bokeh.plotting as plt
-from bokeh.models import (Circle, ColumnDataSource, HoverTool, MultiLine, PanTool, Plot, Range1d, Rect, Text)
+from bokeh.models import (Circle, ColumnDataSource, Ellipse, HoverTool, MultiLine, Oval, PanTool, Plot, Range1d, Rect, Text)
 
 import uuid
 import webbrowser
 
 font_size_in_pixels = 15
+window_height = 700
 
 nodes = {
     'system': {
@@ -33,11 +34,10 @@ nodes = {
 
 
 # Create Bokeh figure
-plot = Plot(plot_width=800, plot_height=700, x_range=Range1d(0.5, 2.5), y_range=Range1d(-0.5, 1))
+plot = Plot(plot_width=window_height, plot_height=window_height, x_range=Range1d(0.5, 2.5), y_range=Range1d(-0.5, 1.5))
 
 node_hover_tool = HoverTool(tooltips=[("(x,y)", "($x, $y)"),])
 plot.add_tools(PanTool(), node_hover_tool)
-
 
 # Conditions system nodes
 nodes_system = nodes['system']
@@ -75,6 +75,7 @@ x = []
 y = []
 text = []
 diameter = []
+radius = []
 in_coords = []
 out_coords = []
 
@@ -86,17 +87,25 @@ for node in nodes_system:
     text.append(cs['label'])
     label_length = len(cs['label'])
     diameter.append(0.03 * (label_length + 2))
+    radius.append(diameter[-1] / 2)
     in_coord = (x[-1], y[-1] - diameter[-1] / 2)
     out_coord = (x[-1] + diameter[-1] / 2, y[-1])
+    cs['in_pos'] = in_coord
+    cs['out_pos'] = out_coord
 
-# Add system box
-glyph_box = Rect(x="x", y="y", width="width", height="height", fill_color="#cab2d6")
-plot.add_glyph(source_systems, glyph_box)
+source_sum = ColumnDataSource(dict(x=x, y=y, text=text, diameter=diameter, radius=radius))
 
-glyph_text = Text(x='x', y='y', text='text', text_font_size='{}px'.format(font_size_in_pixels), text_color="#000000", text_baseline="middle", text_align="center")
-plot.add_glyph(source_systems, glyph_text)
+# Create glyphs
+glyph_system_box = Rect(x="x", y="y", width="width", height="height", fill_color="#cab2d6")
+glyph_system_text = Text(x="x", y="y", text="text", text_font_size="{}px".format(font_size_in_pixels), text_color="#000000", text_baseline="middle", text_align="center")
+glyph_sum_box = Ellipse(x="x", y="y", width="diameter", height="diameter", fill_color="#cab2d6")
+glyph_sum_text = Text(x="x", y="y", text="text", text_font_size="{}px".format(font_size_in_pixels), text_color="#000000", text_baseline="middle", text_align="center")
 
-
+# Add glyphs to plot
+plot.add_glyph(source_systems, glyph_system_box)
+plot.add_glyph(source_sum, glyph_sum_box)
+plot.add_glyph(source_systems, glyph_system_text)
+plot.add_glyph(source_sum, glyph_sum_text)
 
 curdoc().add_root(plot)
 output_file("interactive_graphs2.html", 'Block scheme')
