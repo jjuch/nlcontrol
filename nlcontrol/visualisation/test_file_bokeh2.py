@@ -1,9 +1,7 @@
 from bokeh.io import show, output_file, curdoc, save
-import bokeh.plotting as plt
 from bokeh.models import (Arrow, ColumnDataSource, Ellipse, HoverTool, MultiLine, NormalHead, PanTool, Plot, Range1d, Rect, Text)
 
 import uuid
-import webbrowser
 
 font_size_in_pixels = 15
 window_height = 700
@@ -16,22 +14,32 @@ nodes = {
         'type': 'system',
         'label': 'system', 
         'pos': (2, 0.5),
-        'direction': 'right',
-        'connect_to': [id_list[1]]
+        'in_direction': 'right',
+        'out_direction': 'right',
+        'connect_to': [id_list[1]],
+        'class_name': 'EulerLagrange',
+        'states': 'q_1, dq_1, q_2, dq_2',
+        'output': 'q_1, dq_1'
         }, 
     id_list[1]: {
         'type': 'system',
         'label': 'controller',
         'pos': (2, 0),
-        'direction': 'left',
-        'connect_to': [id_list[2]]
+        'in_direction': 'left',
+        'out_direction': 'left',
+        'connect_to': [id_list[2]],
+        'class_name': 'EulerLagrangeController',
+        'states': 'p_1, p_2',
+        'output': 'p_2'
         },
     id_list[2]: {
         'type': 'summation',
         'label': '-1',
         'pos': (1, 0.5),
-        'direction': 'left', #Not correct yet
-        'connect_to': [id_list[0]]
+        'in_direction': 'up',
+        'out_direction': 'right',
+        'connect_to': [id_list[0]],
+        'output' : '-p_2'
     }
 }
 
@@ -39,11 +47,7 @@ nodes = {
 # Create Bokeh figure
 plot = Plot(plot_width=window_height, plot_height=window_height, x_range=Range1d(0.5, 2.5), y_range=Range1d(-0.5, 1.5))
 
-node_hover_tool = HoverTool(tooltips=[("(x,y)", "($x, $y)"),])
-plot.add_tools(PanTool(), node_hover_tool)
-
 # Conditions system nodes
-# nodes_system = nodes['system']
 x = []
 y = []
 text = []
@@ -51,6 +55,9 @@ width = []
 height = []
 in_coords = []
 out_coords = []
+classname = []
+states = []
+output = []
 
 # Add system text
 for node in nodes:
@@ -64,17 +71,19 @@ for node in nodes:
         height.append(0.1)
         left_coord = (x[-1] - width[-1] / 2, y[-1])
         right_coord = (x[-1] + width[-1] / 2, y[-1])
-        if cs['direction'] == 'right':
+        if cs['in_direction'] == 'right':
             cs['in_pos'] = left_coord
             cs['out_pos'] = right_coord
         else:
             cs['in_pos'] = right_coord
             cs['out_pos'] = left_coord
+        classname.append(cs['class_name'])
+        states.append(cs['states'])
+        output.append(cs['output'])
 
-source_systems = ColumnDataSource(dict(x=x, y=y, text=text, width=width, height=height))
+source_systems = ColumnDataSource(dict(x=x, y=y, text=text, width=width, height=height, data1=classname, data2=states, data3=output))
 
 # Condition sum nodes
-# nodes_system = nodes['summation']
 x = []
 y = []
 text = []
@@ -103,6 +112,8 @@ source_sum = ColumnDataSource(dict(x=x, y=y, text=text, diameter=diameter, radiu
 # Generate connection polynomials
 x_polynomials = []
 y_polynomials = []
+output = []
+
 for node in nodes:
     cs = nodes[node]
     polyn_x_coords = [] 
@@ -112,12 +123,13 @@ for node in nodes:
         polyn_x_coords.append(cs['out_pos'][0])
         polyn_y_coords.append(cs['out_pos'][1])
         # End coordinate
-        sign = 1 if cs['direction'] == 'right' else -1
+        sign = 1 if cs['out_direction'] == 'right' else -1
         half_width = sign * 0.5 * abs(cs['out_pos'][0] - cs['in_pos'][0])
         polyn_x_coords.append(cs['out_pos'][0] + half_width)
         polyn_y_coords.append(cs['out_pos'][1])
         x_polynomials.append(polyn_x_coords)
         y_polynomials.append(polyn_y_coords)
+        output.append(cs['output'])
     else:
         for connection in cs['connect_to']:
             end_block = nodes[connection]
@@ -125,18 +137,24 @@ for node in nodes:
             polyn_x_coords.append(cs['out_pos'][0])
             polyn_y_coords.append(cs['out_pos'][1])
             # Neighbor coordinate start block
-            sign_in = 1 if cs['direction'] == 'right' else -1
+            sign = 1 if cs['out_direction'] == 'right' else -1
             width = abs(cs['out_pos'][0] - cs['in_pos'][0])
-            polyn_x_coords.append(cs['out_pos'][0] + sign_in * 1.2 * width)
+            polyn_x_coords.append(cs['out_pos'][0] + sign * 1.2 * width)
             polyn_y_coords.append(cs['out_pos'][1])
+
             # Neigbor coordinate end block
-            polyn_x_coords.append(polyn_x_coords[-1])
-            polyn_y_coords.append(end_block['in_pos'][1])
+            if end_block['in_direction'] == 'up':
+                polyn_x_coords.append(end_block['in_pos'][0])
+                polyn_y_coords.append(polyn_y_coords[-1])
+            else:
+                polyn_x_coords.append(polyn_x_coords[-1])
+                polyn_y_coords.append(end_block['in_pos'][1])
             # End block coordinates
             polyn_x_coords.append(end_block['in_pos'][0])
             polyn_y_coords.append(end_block['in_pos'][1])
             x_polynomials.append(polyn_x_coords)
             y_polynomials.append(polyn_y_coords)
+            output.append(cs['output'])
             polyn_x_coords = []
             polyn_y_coords = []
 
@@ -150,19 +168,62 @@ glyph_system_text = Text(x="x", y="y", text="text", text_font_size="{}px".format
 glyph_sum_box = Ellipse(x="x", y="y", width="diameter", height="diameter", fill_color="#cab2d6")
 glyph_sum_text = Text(x="x", y="y", text="text", text_font_size="{}px".format(font_size_in_pixels), text_color="#000000", text_baseline="middle", text_align="center")
 
-# Add glyphs to plot
-plot.add_glyph(source_systems, glyph_system_box)
+# Add block glyphs to plot
+glyph_system_box_renderer = plot.add_glyph(source_systems, glyph_system_box)
 plot.add_glyph(source_sum, glyph_sum_box)
-plot.add_glyph(source_systems, glyph_system_text)
+glyph_system_text_renderer = plot.add_glyph(source_systems, glyph_system_text)
 plot.add_glyph(source_sum, glyph_sum_text)
 
-# Add lines
-source_lines = ColumnDataSource(dict(xs=x_polynomials, ys=y_polynomials))
-glyph_lines = MultiLine(xs="xs", ys="ys", line_color="#000000", line_width=2)
-plot.add_glyph(source_lines, glyph_lines)
-
 # Add arrows
+for x_poly, y_poly in zip(x_polynomials, y_polynomials):
+    glyph_arrow = Arrow(end=NormalHead(size=15, fill_color="#000000"),
+                           x_start=x_poly[-2],
+                           y_start=y_poly[-2],
+                           x_end=x_poly[-1],
+                           y_end=y_poly[-1],
+                           line_width=0,
+                           line_color = "#000000")
+    plot.add_layout(glyph_arrow)
+
+# Add lines
+source_lines = ColumnDataSource(dict(xs=x_polynomials, ys=y_polynomials, output=output))
+glyph_lines = MultiLine(xs="xs", ys="ys", line_color="#000000", line_width=3)
+glyph_lines_renderer = plot.add_glyph(source_lines, glyph_lines)
+
+
+# node_hover_tool = HoverTool(tooltips=[("(x,y)", "($x, $y)"),])
+node_hover_tool = HoverTool(line_policy="nearest", tooltips="""
+<div>
+    <div>
+        <b>Class Name:</b>
+        <i>@data1 </i>
+    </div>
+    <div>
+        <b>States:</b>
+        <i>@data2</i>
+    </div>
+    <div>
+        <b>Outputs:</b>
+        <i>@data3</i>
+    </div>
+</div>
+    """,
+    renderers=[glyph_system_box_renderer, glyph_system_text_renderer])
+
+# Should work from Bokeh 2.3.x
+line_hover_tool = HoverTool(line_policy="nearest", tooltips="""
+<div>
+    <div>
+        <b>Output:</b>
+        <i>@output </i>
+    </div>
+</div>
+    """,
+    renderers=[glyph_lines_renderer]
+)
+plot.add_tools(PanTool(), node_hover_tool, line_hover_tool)
+
 
 curdoc().add_root(plot)
-output_file("interactive_graphs2.html", 'Block scheme')
+output_file("closed_loop.html", 'Closed Loop Block scheme')
 show(plot, browser='windows-default', new='window')
