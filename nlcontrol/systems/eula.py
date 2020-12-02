@@ -11,7 +11,7 @@ from itertools import chain
 
 class EulerLagrange(SystemBase):
     """
-    EulerLagrange(states, inputs, sys=None)
+    EulerLagrange(states, inputs, sys=None, name="EL system")
 
     A class that defines SystemBase object using an Euler-Lagrange formulation:
 
@@ -51,6 +51,8 @@ class EulerLagrange(SystemBase):
         if `inputs` is a string, it is a comma-separated listing of the input names. If `inputs` is array-like it contains the inputs as sympy's dynamic symbols.
     sys : simupy's DynamicalSystem object (simupy.systems.symbolic), optional
         the object containing output and state equations, default: None.
+    name : string
+        give the system a custom name which will be shown in the block scheme, default: 'EL system'.
 
 
     Examples
@@ -84,10 +86,10 @@ class EulerLagrange(SystemBase):
     """
 
 
-    def __init__(self, states, inputs, sys=None):
+    def __init__(self, states, inputs, sys=None, name="EL system"):
         minimal_states, extended_states = self.__extend_states__(states)
         self.minimal_states = self.__process_init_input__(minimal_states)
-        super().__init__(extended_states, inputs, sys=sys)
+        super().__init__(extended_states, inputs, sys=sys, name=name)
         self._M = None
         self._C = None
         self._K = None

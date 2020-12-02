@@ -1,4 +1,5 @@
 import nlcontrol.signals as sgnls
+from nlcontrol.visualisation import RendererBase
 
 from copy import deepcopy, copy
 import warnings
@@ -27,9 +28,9 @@ DEFAULT_INTEGRATOR_OPTIONS = {
     'max_step': 0.0
 }
 
-class SystemBase():
+class SystemBase(RendererBase):
     """
-    SystemBase(states, inputs, sys=None)
+    SystemBase(states, inputs, sys=None, name="system")
 
     Returns a base structure for a system with outputs, optional inputs, and optional states. The system is defines by it state equations (optional):
 
@@ -51,6 +52,8 @@ class SystemBase():
         if `inputs` is a string, it is a comma-separated listing of the input names. If `inputs` is array-like it contains the inputs as sympy's dynamic symbols.
     system : simupy's DynamicalSystem object (simupy.systems.symbolic), optional
         the object containing output and state equations, default: None.
+    name : string
+        give the system a custom name which will be shown in the block scheme, default: 'system'.
 
     Examples
     ---------
@@ -83,11 +86,15 @@ class SystemBase():
         >>> new_sys_lin.simulation(10)
 
     """
-    def __init__(self, states, inputs, sys=None):
+    def __init__(self, states, inputs, sys=None, name="system"):
+        self.sys = None
+        self.name = None
         self.states = self.__process_init_input__(states)
         self.dstates = self.__process_init_input__(states, 1)
         self.inputs = self.__process_init_input__(inputs)
-        self.sys = sys
+        self.system = sys
+        self.block_name = name
+        super().__init__()
 
 
     def __str__(self):
@@ -124,6 +131,7 @@ class SystemBase():
         Create a deep copy of the SystemBase object.
         """
         return deepcopy(self)
+
 
     @property
     def system(self):
@@ -173,6 +181,21 @@ class SystemBase():
         States: {}
         Outputs: {}
         """.format(sys.dim_input, sys.dim_state, sys.dim_output))
+    
+    @property
+    def block_name(self):
+        """
+        Returns the name as it will be used in the block of the visualisation of the block scheme.
+        """
+        return self.name
+
+    @block_name.setter
+    def block_name(self, name: str):
+        if type(name) is not str:
+            error_text = '[SystemBase.block_name] The block name should be of the type string.'
+            raise ValueError(error_text)
+        else:
+            self.name = name
 
 
     def __process_init_input__(self, arg:str, level:int=0) -> Matrix:
@@ -677,4 +700,6 @@ class SystemBase():
                 return lambdify_with_vector_args(self.system.input, self.system.output_equation)
             else:
                 error_text = '[system.__get_output_equation__] The datatype DynamicalSystem is expected and not DynamicalSystem2.'
-                raise TypeError(error_text)        
+                raise TypeError(error_text)
+
+    

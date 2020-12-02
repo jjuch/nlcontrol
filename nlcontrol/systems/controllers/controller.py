@@ -11,7 +11,7 @@ import numpy as np
 
 class ControllerBase(SystemBase):
     """
-    ControllerBase(states, inputs, sys=None)
+    ControllerBase(states, inputs, sys=None, name="controller")
 
     Returns a base structure for a controller with outputs, optional inputs, and optional states. The controller is an instance of a SystemBase, which is defined by it state equations (optional):
     
@@ -31,6 +31,8 @@ class ControllerBase(SystemBase):
         if `inputs` is a string, it is a comma-separated listing of the input names. If `inputs` is array-like it contains the inputs as sympy's dynamic symbols.
     system : simupy's DynamicalSystem object (simupy.systems.symbolic), optional
         the object containing output and state equations, default: None.
+    name : string
+        give the system a custom name which will be shown in the block scheme, default: 'controller'.
 
     Examples
     ---------
@@ -77,7 +79,11 @@ class ControllerBase(SystemBase):
             sys = kwargs['sys']
         else:
             sys = None
-        super().__init__(states, inputs, sys=sys)
+        if 'name' in kwargs.keys():
+            name = kwargs['name']
+        else:
+            name = "controller"
+        super().__init__(states, inputs, sys=sys, name=name)
         self.dinputs, self.iinputs = self.__create_inputs__()
 
     

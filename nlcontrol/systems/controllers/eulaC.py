@@ -13,7 +13,7 @@ import itertools
 
 class DynamicController(ControllerBase):
     """
-    DynamicController(states=None, inputs=None, sys=None)
+    DynamicController(states=None, inputs=None, sys=None, name="EL controller")
 
     The DynamicController object is based on the ControllerBase class. A dynamic controller is defined by the following differential equations:
 
@@ -45,6 +45,8 @@ class DynamicController(ControllerBase):
         if `inputs` is a string, it is a comma-separated listing of the input names. If `inputs` is array-like it contains the inputs as sympy's dynamic symbols. Do not provide the derivatives as these will be added automatically.
     system : simupy's DynamicalSystem object (simupy.systems.symbolic), optional
         the object containing output and state equations, default: None.
+    name : string
+        give the system a custom name which will be shown in the block scheme, default: 'EL controller'.
 
     Examples
     ---------
@@ -79,6 +81,8 @@ class DynamicController(ControllerBase):
         if 'states' not in kwargs.keys():
             error_text = "[nlcontrol.systems.DynamicController] A 'states=' keyword is necessary."
             raise AssertionError(error_text)
+        if 'name' not in kwargs.keys():
+            kwargs['name'] = "EL controller"
         super().__init__(*args, **kwargs)
         
         self.minimal_inputs = self.inputs

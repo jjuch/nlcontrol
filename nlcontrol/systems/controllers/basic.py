@@ -5,8 +5,8 @@ from simupy.systems.symbolic import MemorylessSystem
 
 class PID(ControllerBase):
     """
-    PID(inputs=w)
-    PID(ksi0, chi0, psi0, inputs=inputs)
+    PID(inputs=w, name="PID")
+    PID(ksi0, chi0, psi0, inputs=inputs, name="PID")
 
     A nonlinear PID controller can be created using the PID class. This class is based on the ControllerBase object. The nonlinear PID is is based on the input vector w(t), containing sympy's dynamicsymbols. The formulation is the following:
 
@@ -27,6 +27,8 @@ class PID(ControllerBase):
     kwargs : 
         inputs : array-like or string
             if `inputs` is a string, it is a comma-separated listing of the input names. If `inputs` is array-like it contains the inputs as sympy's dynamic symbols.
+        name : string
+            give the system a custom name which will be shown in the block scheme, default: 'PID'.
 
     Examples
     ---------
@@ -61,6 +63,8 @@ class PID(ControllerBase):
         if 'inputs' not in kwargs.keys():
             error_text = "[nlcontrol.systems.PID] An 'inputs=' keyword is necessary."
             raise AssertionError(error_text)
+        if 'name' not in kwargs.keys():
+            kwargs['name'] = "PID"
         super().__init__(*args, **kwargs)
 
         self._ksi0 = None # potential energy shaper
