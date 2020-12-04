@@ -16,26 +16,10 @@ x_offset, y_offset = 0, 0
 
 class RendererBase():
     def __init__(self):
-        self.screen_info = self.__get_screen_info__()
         self.plot = None
         self.plot_dict = dict()
         self.renderer_info = self.__init_renderer_info__()
 
-    def __get_screen_info__(self) -> dict:
-        os_type = sys.platform
-        if os_type == 'win32':
-            user32 = ctypes.windll.user32
-            screen_size = user32.GetSystemMetrics(0), user32.GetSystemMetrics(1)
-        elif os_type == 'linux':
-            output = subprocess.Popen('xrandr | grep "\*" | cut -d" " -f4',shell=True, stdout=subprocess.PIPE).communicate()[0]
-            screen_size = tuple(output.split()[0].split(b'x'))
-        else:
-            screen_size = (800, 700)
-            
-        screen_ratio = screen_size[1] / screen_size[0]
-        return {'size': screen_size, 'ratio': screen_ratio}
-
-    
     def __init_renderer_info__(self, block_type="system"):
         unique_id = uuid.uuid4()
         info = {unique_id : dict()}
@@ -71,8 +55,8 @@ class RendererBase():
         for current_id in self.renderer_info.keys():
             current_data = self.renderer_info[current_id]
             current_data['pos'] = (0.5, 0.5)
-        print(self.renderer_info)
-
+        # print(self.renderer_info)
+        
     
     def create_sources(self):
         x_sys = []
@@ -163,14 +147,15 @@ class RendererBase():
                     polyn_y_coords.append(cs['in_pos'][1])
                     # Begin coordinate
                     sign = -1 if cs['in_direction'] == 'right' else 1
-                    polyn_x_coords.append(cs['out_pos'][0] + sign * width)
-                    polyn_y_coords.append(cs['out_pos'][1])
+                    polyn_x_coords.append(cs['in_pos'][0] + sign * width)
+                    polyn_y_coords.append(cs['in_pos'][1])
 
                     # Add flipped coordinates
                     polyn_x_coords.reverse()
                     polyn_y_coords.reverse()
                     x_polynomials.append(polyn_x_coords)
                     y_polynomials.append(polyn_y_coords)
+                    output.append(None)
 
                     polyn_x_coords = []
                     polyn_y_coords = []
@@ -231,8 +216,6 @@ class RendererBase():
                     polyn_x_coords = []
                     polyn_y_coords = []
                 
-        print(x_polynomials)
-        print(y_polynomials)
 
         return x_polynomials, y_polynomials, output
 
@@ -251,10 +234,10 @@ class RendererBase():
 
         # Create plot
         self.plot = Plot(
-            plot_width=int(self.screen_info['size'][0] * 0.8),
-            plot_height=int(self.screen_info['size'][1] * 0.8),
-            x_range=Range1d(0, 2),
-            y_range=Range1d(0, self.screen_info['ratio'] * 2))
+            min_height=500,
+            width_policy='max',
+            height_policy='max', 
+            match_aspect=True)
         
         # Add block glyphs to plot
         glyph_system_box_renderer = self.plot.add_glyph(source_systems, glyph_system_box)
