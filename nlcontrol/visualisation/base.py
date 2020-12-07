@@ -1,16 +1,12 @@
-from nlcontrol.visualisation.file_management import __clean_temp_folder__
-from nlcontrol.visualisation.drawing_tools import draw_line, generate_system_renderer_info, generate_parallel_renderer_info
+from nlcontrol.visualisation.file_management import __write_to_browser__, pretty_print_dict
+from nlcontrol.visualisation.drawing_tools import draw_line, generate_system_renderer_info, generate_parallel_renderer_info, generate_renderer_sources
 
 from bokeh.io import show, output_file, curdoc
 from bokeh.resources import CDN
 from bokeh.embed import file_html
 from bokeh.models import (Arrow, ColumnDataSource, Ellipse, HoverTool, MultiLine, NormalHead, PanTool, Plot, Range1d, Rect, Text)
 
-import ctypes
-import sys, os, glob
-import subprocess
 import uuid
-import tempfile, webbrowser
 
 FONT_SIZE_IN_PIXELS = 15
 x_offset, y_offset = 0, 0
@@ -22,7 +18,7 @@ class RendererBase():
         self.renderer_info = self.__init_renderer_info__(**kwargs)
 
     def __init_renderer_info__(self, block_type="system", **kwargs):
-        unique_id = uuid.uuid4()
+        unique_id = uuid.uuid4().hex
         info = {unique_id : dict()}
         info_id = info[unique_id]
         if 'block_type' in kwargs:
@@ -39,22 +35,18 @@ class RendererBase():
         info_id.update(info_dict)
         return info
 
-
-    def __open_figure__(self):
-        __clean_temp_folder__()
-        with tempfile.TemporaryFile(mode='w+t', prefix="nlcontrol_", suffix=".html", delete=False) as f:
-            html = file_html(self.plot, CDN, "my plot")
-            f.write(html)
-            f.flush()
-            browser = webbrowser.get()
-            browser.open_new(f.name)
-
     
     def set_coordinates(self, current_element=None):
-        # print(self.renderer_info)
-        for current_id in self.renderer_info.keys():
-            current_data = self.renderer_info[current_id]
-            current_data['pos'] = (0.5, 0.5)
+        if current_element is None:
+            current_element = self.renderer_info
+        for current_id in current_element.keys():
+            print("=======")
+            print("current id: ", current_id)
+            current_data = current_element[current_id]
+            current_data['position'] = current_data['rel_position'](current_data['x_offset'], current_data['y_offset'])
+            print('current_data: ', current_data)
+            if 'nodes' in current_data:
+                self.set_coordinates(current_element=current_data['nodes'])
         # print(self.renderer_info)
         
     
@@ -82,8 +74,8 @@ class RendererBase():
         for node in self.renderer_info:
             cs = self.renderer_info[node]
             if cs['type'] =='system':
-                x_sys.append(cs['pos'][0])
-                y_sys.append(cs['pos'][1])
+                x_sys.append(cs['position'][0])
+                y_sys.append(cs['position'][1])
                 text_sys.append(cs['label'])
                 label_length = len(cs['label'])
                 width_sys.append(0.03 * (label_length + 2))
@@ -100,8 +92,8 @@ class RendererBase():
                 states.append(cs['states'])
                 output_sys.append(cs['output'])
             elif cs['type'] == 'summation':
-                x_sum.append(cs['pos'][0])
-                y_sum.append(cs['pos'][1])
+                x_sum.append(cs['position'][0])
+                y_sum.append(cs['position'][1])
                 text_sum.append(cs['label'])
                 label_length = len(cs['label'])
                 diameter.append(0.01 * (label_length + 2))
@@ -118,11 +110,11 @@ class RendererBase():
                 cs['out_pos'] = out_coord
                 output.append(cs['output'])
             elif cs['type'] == 'common':
-                x_comm.append(cs['pos'][0])
-                y_comm.append(cs['pos'][1])
+                x_comm.append(cs['position'][0])
+                y_comm.append(cs['position'][1])
                 width_comm.append(0.03)
-                cs['out_pos'] = cs['pos']
-                cs['in_pos'] = cs['pos']
+                cs['out_pos'] = cs['position']
+                cs['in_pos'] = cs['position']
 
         source_systems = ColumnDataSource(dict(x=x_sys, y=y_sys, text=text_sys, width=width_sys, height=height_sys, data1=classname, data2=states, data3=output_sys))
         source_sum = ColumnDataSource(dict(x=x_sum, y=y_sum, text=text_sum, diameter=diameter, radius=radius, output=output_sum))
@@ -175,7 +167,7 @@ class RendererBase():
                     for connection in cs['connect_to']:
                         end_block = nodes[connection]
                         if type(end_block['in_direction']) == list:
-                            if cs['pos'][1] > end_block['pos'][1]:
+                            if cs['position'][1] > end_block['position'][1]:
                                 end_block_in = end_block['in_pos'][0]
                             else:
                                 end_block_in = end_block['in_pos'][1]
@@ -223,6 +215,8 @@ class RendererBase():
     def show(self, open=True):
         print("Showing the system {} with name '{}'".format(type(self), self.name))
         self.set_coordinates()
+        pretty_print_dict(self.renderer_info)
+        
         source_systems, source_sum, source_commons = self.create_sources()
         x_polynomials, y_polynomials, output_lines = self.create_connections()
 
@@ -299,7 +293,8 @@ class RendererBase():
         self.plot.add_tools(PanTool(), node_hover_tool, sum_hover_tool)
 
         if open:
-            self.__open_figure__()
+            html = file_html(self.plot, CDN, "my plot")
+            __write_to_browser__(html)
         
 
         
