@@ -86,7 +86,7 @@ class SystemBase(RendererBase):
         >>> new_sys_lin.simulation(10)
 
     """
-    def __init__(self, states, inputs, sys=None, name="system"):
+    def __init__(self, states, inputs, sys=None, name="system", **kwargs):
         self.sys = None
         self.name = None
         self.states = self.__process_init_input__(states)
@@ -94,7 +94,7 @@ class SystemBase(RendererBase):
         self.inputs = self.__process_init_input__(inputs)
         self.system = sys
         self.block_name = name
-        super().__init__()
+        super().__init__(**kwargs)
 
 
     def __str__(self):
@@ -468,7 +468,7 @@ class SystemBase(RendererBase):
                     states = Array(self.states.tolist() + sys_append.states.tolist())
                     state_equations2 = Array(msubs(expr, substitutions) for expr in sys_append.sys.state_equation)
                     state_equations = Array(self.sys.state_equation.tolist() + state_equations2.tolist())
-                return SystemBase(states, inputs, DynamicalSystem(state_equation=state_equations, state=states, input_=inputs, output_equation=output_equations))
+                return SystemBase(states, inputs, DynamicalSystem(state_equation=state_equations, state=states, input_=inputs, output_equation=output_equations), block_type="parallel", systems = [self, sys_append])
 
     
     def simulation(self, tspan, number_of_samples=100, initial_conditions=None, input_signals=None, plot=False, custom_integrator_options=None):

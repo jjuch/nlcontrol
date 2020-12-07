@@ -1,4 +1,5 @@
 from nlcontrol.visualisation.file_management import __clean_temp_folder__
+from nlcontrol.visualisation.drawing_tools import draw_line, generate_system_renderer_info, generate_parallel_renderer_info
 
 from bokeh.io import show, output_file, curdoc
 from bokeh.resources import CDN
@@ -15,28 +16,27 @@ FONT_SIZE_IN_PIXELS = 15
 x_offset, y_offset = 0, 0
 
 class RendererBase():
-    def __init__(self):
+    def __init__(self, **kwargs):
         self.plot = None
         self.plot_dict = dict()
-        self.renderer_info = self.__init_renderer_info__()
+        self.renderer_info = self.__init_renderer_info__(**kwargs)
 
-    def __init_renderer_info__(self, block_type="system"):
+    def __init_renderer_info__(self, block_type="system", **kwargs):
         unique_id = uuid.uuid4()
         info = {unique_id : dict()}
         info_id = info[unique_id]
-        info_id['type'] = block_type
+        if 'block_type' in kwargs:
+            block_type = kwargs['block_type']
+        print(block_type)
 
         if block_type == "system":
-            info_id['label'] = self.block_name
-            info_id['in_direction'] = 'right'
-            info_id['out_direction'] = 'right'
-            info_id['connect_to'] = []
-            info_id['connect_from'] = []
-            info_id['class_name'] = self.__class__.__name__
-            separator = ', '
-            info_id['states'] = separator.join(\
-                [str(state) for state in self.states])
-            info_id['output'] = ''
+            info_dict = generate_system_renderer_info(self)
+        elif block_type == "parallel":
+            if 'systems' not in kwargs:
+                error_text = "[RendererBase] In the case of a 'parallel' block_type a keyword argument 'systems' should be applied."
+                raise AttributeError(error_text)
+            info_dict = generate_parallel_renderer_info(self, kwargs['systems'])
+        info_id.update(info_dict)
         return info
 
 

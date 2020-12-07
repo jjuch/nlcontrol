@@ -1,4 +1,5 @@
 import numpy as np
+import uuid
 
 UNIT_LENGTH = 0.3
 
@@ -107,6 +108,95 @@ def draw_line(coord1, coord2, forbidden_direction=None, recursion_depth=0):
         # maximal depth step in recursion
         coordinate_list.append(new_coord)
         return coordinate_list
+
+    
+def generate_system_renderer_info(self_obj, position=None, connect_from=[], connect_to=[]):
+    if position is None:
+        position = lambda x_offset, y_offset: (x_offset, y_offset)
+    separator = ", "
+    states_str = separator.join(\
+        [str(state) for state in self_obj.states])
+    info = {
+        'type': 'system',
+        'label': self_obj.block_name,
+        'rel_position': position
+        'in_direction': 'right',
+        'out_direction': 'right',
+        'connect_to': connect_to,
+        'connect_from': connect_from,
+        'class_name': self_obj.__class__.__name__,
+        'states': states_str,
+        'output': ''
+    }
+    return info
+
+def generate_summation_renderer_info(label='+', position=None, in_direction=['down', 'up'], out_direction='right', connect_to=[], connect_from=[], output=''):
+    if position is None:
+        position = lambda x_offset, y_offset: (x_offset, y_offset)
+    info = {
+        'type': 'summation',
+        'label': label,
+        'rel_position': position
+        'in_direction': in_direction,
+        'out_direction': out_direction,
+        'connect_to': connect_to,
+        'connect_from': connect_from,
+        'output': output
+    }
+    return info
+
+def generate_common_node_renderer_info(position=None, connect_to=[], connect_from=[], output=''):
+    if position is None:
+        position = lambda x_offset, y_offset: (x_offset, y_offset)
+    info = {
+        'type': 'common',
+        'rel_position': position,
+        'connect_to': connect_to,
+        'connect_from': connect_from,
+        'output': output
+    }
+    return info
+
+
+def generate_parallel_renderer_info(self_obj, systems):
+    number_of_blocks = 4
+    id_list = [uuid.uuid4() for _ in range(number_of_blocks)]
+    
+    position = lambda x_offset, y_offset: (x_offset, y_offset)
+    info = {
+        'type': 'parallel',
+        'label': self_obj.block_name,
+        'rel_position': position,
+        'in_direction': 'right', 
+        'out_direction': 'right',
+        'connect_to': [],
+        'connect_from': [],
+        'x_offset': 0,
+        'y_offset': 0
+        'nodes': dict()
+    }
+    nodes_dict = info['nodes']
+
+    # Add system nodes
+    for i, system in enumerate(systems):
+        position = lambda x_offset, y_offset: (0.5 + x_offset, 0.5 * i + y_offset)
+        system_dict = generate_system_renderer_info(system, position=position, connect_to=[id_list[2]], connect_from=[id_list[3]])
+        new_dict = {id_list[i]: system_dict}
+        nodes_dict.update(new_dict)
+    
+    # Add summation node
+    position = lambda x_offset, y_offset: (1 + x_offset, 0.25 + y_offset)
+    summation_dict = generate_summation_renderer_info(position=position, connect_from=[id_list[0], id_list[1]])
+    new_dict = {id_list[2]: summation_dict}
+    nodes_dict.update(new_dict)
+
+    # Add input_node
+    position = lambda x_offset, y_offset: (x_offset, 0.25 + y_offset)
+    input_node_dict = generate_common_node_renderer_info(position=position, connect_to=[id_list[0], id_list[1]])
+    new_dict = {id_list[3]: input_node_dict}
+    nodes_dict.update(new_dict)
+
+    return info
 
 
 if __name__ == "__main__":
