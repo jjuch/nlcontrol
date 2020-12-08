@@ -1,5 +1,6 @@
-from nlcontrol.visualisation.file_management import __write_to_browser__, pretty_print_dict
+from nlcontrol.visualisation.file_management import __write_to_browser__
 from nlcontrol.visualisation.drawing_tools import draw_line, generate_system_renderer_info, generate_parallel_renderer_info, generate_renderer_sources
+from nlcontrol.visualisation.utils import pretty_print_dict
 
 from bokeh.io import show, output_file, curdoc
 from bokeh.resources import CDN
@@ -40,87 +41,12 @@ class RendererBase():
         if current_element is None:
             current_element = self.renderer_info
         for current_id in current_element.keys():
-            print("=======")
-            print("current id: ", current_id)
             current_data = current_element[current_id]
             current_data['position'] = current_data['rel_position'](current_data['x_offset'], current_data['y_offset'])
-            print('current_data: ', current_data)
             if 'nodes' in current_data:
                 self.set_coordinates(current_element=current_data['nodes'])
         # print(self.renderer_info)
-        
-    
-    def create_sources(self):
-        x_sys = []
-        y_sys = []
-        x_sum = []
-        y_sum = []
-        x_comm = []
-        y_comm = []
-        text_sys = []
-        text_sum = []
-        width_sys = []
-        height_sys = []
-        diameter = []
-        radius = []
-        width_comm = []
-        in_coords = []
-        out_coords = []
-        classname = []
-        states = []
-        output_sys = []
-        output_sum = []
 
-        for node in self.renderer_info:
-            cs = self.renderer_info[node]
-            if cs['type'] =='system':
-                x_sys.append(cs['position'][0])
-                y_sys.append(cs['position'][1])
-                text_sys.append(cs['label'])
-                label_length = len(cs['label'])
-                width_sys.append(0.03 * (label_length + 2))
-                height_sys.append(0.1)
-                left_coord = (x_sys[-1] - width_sys[-1] / 2, y_sys[-1])
-                right_coord = (x_sys[-1] + width_sys[-1] / 2, y_sys[-1])
-                if cs['in_direction'] == 'right':
-                    cs['in_pos'] = left_coord
-                    cs['out_pos'] = right_coord
-                else:
-                    cs['in_pos'] = right_coord
-                    cs['out_pos'] = left_coord
-                classname.append(cs['class_name'])
-                states.append(cs['states'])
-                output_sys.append(cs['output'])
-            elif cs['type'] == 'summation':
-                x_sum.append(cs['position'][0])
-                y_sum.append(cs['position'][1])
-                text_sum.append(cs['label'])
-                label_length = len(cs['label'])
-                diameter.append(0.01 * (label_length + 2))
-                radius.append(diameter[-1] / 2)
-                in_coord = []
-                for direc in cs['in_direction']:
-                    if direc == 'up':
-                        in_coord_temp = (x_sum[-1], y_sum[-1] - diameter[-1] / 2)
-                    elif direc == 'down':
-                        in_coord_temp = (x_sum[-1], y_sum[-1] + diameter[-1] / 2)
-                    in_coord.append(in_coord_temp)
-                out_coord = (x_sum[-1] + diameter[-1] / 2, y_sum[-1])
-                cs['in_pos'] = in_coord
-                cs['out_pos'] = out_coord
-                output.append(cs['output'])
-            elif cs['type'] == 'common':
-                x_comm.append(cs['position'][0])
-                y_comm.append(cs['position'][1])
-                width_comm.append(0.03)
-                cs['out_pos'] = cs['position']
-                cs['in_pos'] = cs['position']
-
-        source_systems = ColumnDataSource(dict(x=x_sys, y=y_sys, text=text_sys, width=width_sys, height=height_sys, data1=classname, data2=states, data3=output_sys))
-        source_sum = ColumnDataSource(dict(x=x_sum, y=y_sum, text=text_sum, diameter=diameter, radius=radius, output=output_sum))
-        source_commons = ColumnDataSource(dict(x=x_comm, y=y_comm, width=width_comm))
-
-        return source_systems, source_sum, source_commons
 
     def create_connections(self):
         x_polynomials = []
@@ -215,9 +141,12 @@ class RendererBase():
     def show(self, open=True):
         print("Showing the system {} with name '{}'".format(type(self), self.name))
         self.set_coordinates()
-        pretty_print_dict(self.renderer_info)
         
-        source_systems, source_sum, source_commons = self.create_sources()
+        # source_systems, source_sum, source_commons = self.create_sources()
+        source_systems, source_sum, source_commons = generate_renderer_sources(self.renderer_info)
+        # pretty_print_dict(self.renderer_info)
+        exit()
+
         x_polynomials, y_polynomials, output_lines = self.create_connections()
 
         glyph_system_text = Text(x="x", y="y", text="text", text_font_size="{}px".format(FONT_SIZE_IN_PIXELS), text_color="#000000", text_baseline="middle", text_align="center")
@@ -263,15 +192,15 @@ class RendererBase():
             <div>
                 <div>
                     <b>Class Name:</b>
-                    <i>@data1 </i>
+                    <i>@classname </i>
                 </div>
                 <div>
                     <b>States:</b>
-                    <i>@data2</i>
+                    <i>@states</i>
                 </div>
                 <div>
                     <b>Outputs:</b>
-                    <i>@data3</i>
+                    <i>@output</i>
                 </div>
             </div>
                 """,

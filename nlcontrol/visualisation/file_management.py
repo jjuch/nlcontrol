@@ -17,6 +17,3 @@ def __write_to_browser__(html, clean_temp=True):
         f.flush()
         browser = webbrowser.get()
         browser.open_new(f.name)
-
-def pretty_print_dict(dict_data):
-    print(json.dumps(dict_data, default=lambda o: '<not serializable>', indent=4))

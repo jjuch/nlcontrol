@@ -1,7 +1,14 @@
+from nlcontrol.visualisation.utils import pretty_print_dict
+
 import numpy as np
 import uuid
 
-UNIT_LENGTH = 0.3
+from bokeh.models import ColumnDataSource
+
+UNIT_WIRE_LENGTH = 0.3
+UNIT_CHARACTER_LENGTH = 0.03
+UNIT_CHARACTER_HEIGHT = 0.1
+
 
 def draw_line(coord1, coord2, forbidden_direction=None, recursion_depth=0):
     # Initialize
@@ -45,7 +52,7 @@ def draw_line(coord1, coord2, forbidden_direction=None, recursion_depth=0):
             if same_plane(dir1, dir2):
                 if dir1 != dir2:
                     # Pass the point by one unit length
-                    coord = (dx + dir1[0] * UNIT_LENGTH) * abs(dir1[0]) + coord1[0], (dy + dir1[1] * UNIT_LENGTH) * abs(dir1[1]) + coord1[1]
+                    coord = (dx + dir1[0] * UNIT_WIRE_LENGTH) * abs(dir1[0]) + coord1[0], (dy + dir1[1] * UNIT_WIRE_LENGTH) * abs(dir1[1]) + coord1[1]
                 elif coord1[0] == coord2[0] or coord1[1] == coord2[1]:
                     # Go to the end node
                     coord = dx * abs(dir1[0]) + coord1[0], dy * abs(dir1[1]) + coord1[1]
@@ -60,7 +67,7 @@ def draw_line(coord1, coord2, forbidden_direction=None, recursion_depth=0):
                 coord = dx / 2 * abs(dir1[0]) + coord1[0], dy / 2 * abs(dir1[1]) + coord1[1]
         else:
             # Move one unit length in the correct direction
-            coord = dir1[0] * UNIT_LENGTH + coord1[0], dir1[1] * UNIT_LENGTH + coord1[1]
+            coord = dir1[0] * UNIT_WIRE_LENGTH + coord1[0], dir1[1] * UNIT_WIRE_LENGTH + coord1[1]
             forbidden_direction = (-1 * dir1[0], -1 * dir1[1], abs(dir1[1]))
 
         return coord, forbidden_direction
@@ -214,8 +221,135 @@ def generate_parallel_renderer_info(self_obj, systems):
     return info
 
 
-def generate_renderer_sources(renderer_info):
-    pass
+def generate_renderer_sources(renderer_info, recursion_depth=0):
+    x_sys = []
+    y_sys = []
+    x_sum = []
+    y_sum = []
+    x_comm = []
+    y_comm = []
+    text_sys = []
+    text_sum = []
+    width_sys = []
+    height_sys = []
+    diameter = []
+    radius = []
+    width_comm = []
+    classname = []
+    states = []
+    output_sys = []
+    output_sum = []
+    
+
+    for node in renderer_info:
+        cs = renderer_info[node]
+        if cs['type'] == 'system':
+            # Set coordinate of center of block
+            x_sys.append(cs['position'][0])
+            y_sys.append(cs['position'][1])
+            # Set dimensions
+            text_sys.append(cs['label'])
+            label_length = len(cs['label'])
+            width_sys.append(UNIT_CHARACTER_LENGTH * (label_length + 2))
+            height_sys.append(UNIT_CHARACTER_HEIGHT)
+            left_coord = (x_sys[-1] - width_sys[-1] / 2, y_sys[-1])
+            right_coord = (x_sys[-1] + width_sys[-1] / 2, y_sys[-1])
+            # Get input and output coordinates
+            if cs['in_direction'] == 'right':
+                cs['in_pos'] = left_coord
+                cs['out_pos'] = right_coord
+            else:
+                cs['in_pos'] = right_coord
+                cs['out_pos'] = left_coord
+            # Set information
+            classname.append(cs['class_name'])
+            states.append(cs['states'])
+            output_sys.append(cs['output'])
+        elif cs['type'] == 'summation':
+            # Set coordinate of center of block
+            x_sum.append(cs['position'][0])
+            y_sum.append(cs['position'][1])
+            # Set dimensions
+            output_sum.append(cs['output'])
+            text_sum.append(cs['label'])
+            label_length = len(cs['label'])
+            diameter.append(UNIT_CHARACTER_LENGTH * (label_length + 2))
+            radius.append(diameter[-1] / 2)
+            # Get input coordinate
+            in_coord = []
+            for direc in cs['in_direction']:
+                if direc == 'up':
+                    in_coord_temp = (x_sum[-1], y_sum[-1] - diameter[-1] / 2)
+                elif direc == 'down':
+                    in_coord_temp = (x_sum[-1], y_sum[-1] + diameter[-1] / 2)
+                elif direc == 'left':
+                    in_coord_temp = (x_sum[-1] - diameter[-1] / 2, y_sum[-1])
+                elif direc == 'right':
+                    in_coord_temp = (x_sum[-1] + diameter[-1] / 2, y_sum[-1])
+                else:
+                    error_text = "[Visualisation.drawing_tools] The directions can only be defined by the strings 'up', 'down', 'left', and 'right'."
+                    raise ValueError(error_text)
+                in_coord.append(in_coord_temp)
+            cs['in_pos'] = in_coord
+            # Get output coordinate
+            if cs['out_direction'] == 'up':
+                cs['out_pos'] = (x_sum[-1], y_sum[-1] - diameter[-1] / 2)
+            elif cs['out_direction'] == 'down':
+                cs['out_pos'] = (x_sum[-1], y_sum[-1] + diameter[-1] / 2)
+            elif cs['out_direction'] == 'left':
+                cs['out_pos'] = (x_sum[-1] - diameter[-1] / 2, y_sum[-1])
+            elif cs['out_direction'] == 'right':
+                cs['out_pos'] = (x_sum[-1] + diameter[-1] / 2, y_sum[-1])
+            else:
+                error_text = "[Visualisation.drawing_tools] The directions can only be defined by the strings 'up', 'down', 'left', and 'right'."
+                raise ValueError(error_text)
+        elif cs['type'] == 'common':
+            x_comm.append(cs['position'][0])
+            y_comm.append(cs['position'][1])
+            width_comm.append(UNIT_CHARACTER_LENGTH)
+            # Set input and output coordinates
+            cs['in_pos'] = cs['position']
+            cs['out_pos'] = cs['position']
+        else:
+            if 'nodes' in cs:
+                sys_dict, sum_dict, comm_dict = generate_renderer_sources(cs['nodes'], recursion_depth=recursion_depth + 1)
+                # print(sys_dict)
+                # append recursive system data
+                x_sys.extend(sys_dict['x'])
+                y_sys.extend(sys_dict['y'])
+                text_sys.extend(sys_dict['text'])
+                width_sys.extend(sys_dict['width'])
+                height_sys.extend(sys_dict['height'])
+                classname.extend(sys_dict['classname'])
+                states.extend(sys_dict['states'])
+                output_sys.extend(sys_dict['output'])
+                # extend recursive sum data
+                x_sum.extend(sum_dict['x'])
+                y_sum.extend(sum_dict['y'])
+                text_sum.extend(sum_dict['text'])
+                diameter.extend(sum_dict['diameter'])
+                radius.extend(sum_dict['radius'])
+                output_sum.extend(sum_dict['output'])
+                # extend recursive common node data
+                x_comm.extend(comm_dict['x'])
+                y_comm.extend(comm_dict['y'])
+                width_comm.extend(comm_dict['width'])
+            else:
+                raise ValueError
+
+    if recursion_depth == 0:
+        source_systems = ColumnDataSource(dict(x=x_sys, y=y_sys, text=text_sys, width=width_sys, height=height_sys, classname=classname, states=states, output=output_sys))
+        source_sum = ColumnDataSource(dict(x=x_sum, y=y_sum, text=text_sum, diameter=diameter, radius=radius, output=output_sum))
+        source_commons = ColumnDataSource(dict(x=x_comm, y=y_comm, width=width_comm))
+        
+        return source_systems, source_sum, source_commons
+    else:
+        sys_dict = {'x': x_sys, 'y': y_sys, 'text': text_sys, 'width': width_sys, 'height': height_sys, 'output': output_sys, 'states': states, 'classname': classname}
+        sum_dict = {'x': x_sum, 'y': y_sum, 'text': text_sum, 'diameter': diameter, 'radius': radius, 'output': output_sum}
+        comm_dict = {'x': x_comm, 'y': y_comm, 'width': width_comm}
+        return sys_dict, sum_dict, comm_dict
+
+            
 
 
 
