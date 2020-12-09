@@ -1,5 +1,5 @@
 from nlcontrol.visualisation.file_management import __write_to_browser__
-from nlcontrol.visualisation.drawing_tools import draw_line, generate_system_renderer_info, generate_parallel_renderer_info, generate_renderer_sources, generate_connection_coordinates
+from nlcontrol.visualisation.drawing_tools import draw_line, generate_system_renderer_info, generate_parallel_renderer_info, generate_renderer_sources, generate_connection_coordinates, generate_series_renderer_info
 from nlcontrol.visualisation.utils import pretty_print_dict
 
 from bokeh.io import show, output_file, curdoc
@@ -12,142 +12,22 @@ import uuid
 FONT_SIZE_IN_PIXELS = 15
 x_offset, y_offset = 0, 0
 
-class RendererBase():
-    def __init__(self, **kwargs):
+class RendererBase(object):
+    def __init__(self, system_obj, **kwargs):
+        print('RendererBase: init called')
         self.plot = None
         self.plot_dict = dict()
-        self.renderer_info = self.__init_renderer_info__(**kwargs)
+        self.system_obj = system_obj
+        self.renderer_info = None
 
-    def __init_renderer_info__(self, block_type="system", **kwargs):
-        unique_id = uuid.uuid4().hex
-        info = {unique_id : dict()}
-        info_id = info[unique_id]
-        if 'block_type' in kwargs:
-            block_type = kwargs['block_type']
-        print(block_type)
-
-        if block_type == "system":
-            info_dict = generate_system_renderer_info(self)
-        elif block_type == "parallel":
-            if 'systems' not in kwargs:
-                error_text = "[RendererBase] In the case of a 'parallel' block_type a keyword argument 'systems' should be applied."
-                raise AttributeError(error_text)
-            info_dict = generate_parallel_renderer_info(self, kwargs['systems'])
-        info_id.update(info_dict)
-        return info
-
-    
-    def set_coordinates(self, current_element=None):
-        if current_element is None:
-            current_element = self.renderer_info
-        for current_id in current_element.keys():
-            current_data = current_element[current_id]
-            current_data['position'] = current_data['rel_position'](current_data['x_offset'], current_data['y_offset'])
-            if 'nodes' in current_data:
-                self.set_coordinates(current_element=current_data['nodes'])
-        # print(self.renderer_info)
-
-
-    def create_connections(self):
-        x_polynomials = []
-        y_polynomials = []
-        output = []
-
-        for node in self.renderer_info:
-            cs = self.renderer_info[node]
-            polyn_x_coords = [] 
-            polyn_y_coords = []
-            if cs['type'] != 'common':
-                width = abs(cs['out_pos'][0] - cs['in_pos'][0])
-                if len(cs['connect_from']) == 0:
-                    # End coordinate
-                    polyn_x_coords.append(cs['in_pos'][0])
-                    polyn_y_coords.append(cs['in_pos'][1])
-                    # Begin coordinate
-                    sign = -1 if cs['in_direction'] == 'right' else 1
-                    polyn_x_coords.append(cs['in_pos'][0] + sign * width)
-                    polyn_y_coords.append(cs['in_pos'][1])
-
-                    # Add flipped coordinates
-                    polyn_x_coords.reverse()
-                    polyn_y_coords.reverse()
-                    x_polynomials.append(polyn_x_coords)
-                    y_polynomials.append(polyn_y_coords)
-                    output.append(None)
-
-                    polyn_x_coords = []
-                    polyn_y_coords = []
-
-                if len(cs['connect_to']) == 0:
-                    # Begin coordinate
-                    polyn_x_coords.append(cs['out_pos'][0])
-                    polyn_y_coords.append(cs['out_pos'][1])
-                    # End coordinate
-                    sign = 1 if cs['out_direction'] == 'right' else -1
-                    polyn_x_coords.append(cs['out_pos'][0] + sign * width)
-                    polyn_y_coords.append(cs['out_pos'][1])
-                    x_polynomials.append(polyn_x_coords)
-                    y_polynomials.append(polyn_y_coords)
-                    output.append(cs['output'])
-                else:
-                    for connection in cs['connect_to']:
-                        end_block = nodes[connection]
-                        if type(end_block['in_direction']) == list:
-                            if cs['position'][1] > end_block['position'][1]:
-                                end_block_in = end_block['in_pos'][0]
-                            else:
-                                end_block_in = end_block['in_pos'][1]
-                        else:
-                            end_block_in = end_block['in_pos']
-                        # Begin coordinate
-                        polyn_x_coords.append(cs['out_pos'][0])
-                        polyn_y_coords.append(cs['out_pos'][1])
-
-                        polyn_x_coords.append(end_block_in[0])
-                        polyn_y_coords.append(cs['out_pos'][1])
-
-                        # End block coordinates
-                        polyn_x_coords.append(end_block_in[0])
-                        polyn_y_coords.append(end_block_in[1])
-                        x_polynomials.append(polyn_x_coords)
-                        y_polynomials.append(polyn_y_coords)
-                        output.append(cs['output'])
-                        polyn_x_coords = []
-                        polyn_y_coords = []
-            else:
-                for connection in cs['connect_to']:
-                    end_block = nodes[connection]
-                    end_block_in = end_block['in_pos']
-                    # Begin coordinate
-                    polyn_x_coords.append(cs['out_pos'][0])
-                    polyn_y_coords.append(cs['out_pos'][1])
-
-                    polyn_x_coords.append(polyn_x_coords[-1])
-                    polyn_y_coords.append(end_block_in[1])
-
-                    # End block coordinates
-                    polyn_x_coords.append(end_block_in[0])
-                    polyn_y_coords.append(end_block_in[1])
-                    x_polynomials.append(polyn_x_coords)
-                    y_polynomials.append(polyn_y_coords)
-                    output.append(cs['output'])
-                    polyn_x_coords = []
-                    polyn_y_coords = []
-                
-
-        return x_polynomials, y_polynomials, output
-
-
-    def show(self, open=True):
-        print("Showing the system {} with name '{}'".format(type(self), self.name))
+    def show(self, open_browser=True):
+        print("Showing the system {} with name '{}'".format(type(self.system_obj), self.system_obj.name))
         self.set_coordinates()
         
         source_systems, source_sum, source_commons = generate_renderer_sources(self.renderer_info)
         # pretty_print_dict(self.renderer_info)
 
-        # x_polynomials, y_polynomials, output_lines = self.create_connections()
         x_polynomials, y_polynomials, output_lines = generate_connection_coordinates(self.renderer_info)
-        # exit()
 
         glyph_system_text = Text(x="x", y="y", text="text", text_font_size="{}px".format(FONT_SIZE_IN_PIXELS), text_color="#000000", text_baseline="middle", text_align="center")
         glyph_system_box = Rect(x="x", y="y", width="width", height="height", fill_color="#cab2d6", fill_alpha=0.4)
@@ -221,11 +101,66 @@ class RendererBase():
         )
         self.plot.add_tools(PanTool(), node_hover_tool, sum_hover_tool)
 
-        if open:
+        if open_browser:
             html = file_html(self.plot, CDN, "my plot")
             __write_to_browser__(html)
         
 
+class SystemRenderer(RendererBase):
+    def __init__(self, system_obj, **kwargs):
+        print('SystemRenderer: init called')
+        super().__init__(system_obj, **kwargs)
+        self.renderer_info = self.__init_renderer_info__(**kwargs)
+
+    def __init_renderer_info__(self, block_type="system", **kwargs):
+        print('SystemRenderer : renderer_info')
+        unique_id = uuid.uuid4().hex
+        info = {unique_id : dict()}
+        info_id = info[unique_id]
+        if 'block_type' in kwargs:
+            block_type = kwargs['block_type']
+        # print(block_type)
+
+        if block_type == "system":
+            info_dict = generate_system_renderer_info(self.system_obj)
+        elif block_type == "parallel":
+            if 'systems' not in kwargs:
+                error_text = "[RendererBase] In the case of a 'parallel' block_type a keyword argument 'systems' should be supplied."
+                raise AttributeError(error_text)
+            info_dict = generate_parallel_renderer_info(self.system_obj, kwargs['systems'])
+        elif block_type == "series":
+            if 'systems' not in kwargs:
+                error_text = "[RendererBase] In the case of a 'series' block_type a keyword argument 'systems' should be supplied."
+                raise AttributeError(error_text)
+            info_dict = generate_series_renderer_info(self.system_obj, kwargs['systems'])
+        info_id.update(info_dict)
+        return info
+
+    
+    def set_coordinates(self, current_element=None):
+        if current_element is None:
+            current_element = self.renderer_info
+        for current_id in current_element.keys():
+            current_data = current_element[current_id]
+            current_data['position'] = current_data['rel_position'](current_data['x_offset'], current_data['y_offset'])
+            if 'nodes' in current_data:
+                self.set_coordinates(current_element=current_data['nodes'])
+        # print(self.renderer_info)
+
+class ParallelRenderer(RendererBase):
+    def __init__(self, system_obj, **kwargs):
+        print('ParallelRenderer: init called')
+        super().__init__(system_obj, **kwargs)
+        self.renderer_info = self.__init_renderer_info__(**kwargs)
+
+    def __init_renderer_info__(self, block_type="parallel", **kwargs):
+        print('ParallelRenderer : renderer_info')
+
+class SeriesRenderer(RendererBase):
+    def __init__(self, system_obj, **kwargs):
+        super().__init__(system_obj, **kwargs)
+        self.renderer_info = self.__init_renderer_info__(**kwargs)
+
+    def __init_renderer_info__(self, block_type="series", **kwargs):
+        print(SeriesRenderer: renderer_info)
         
-
-

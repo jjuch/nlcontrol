@@ -1,5 +1,5 @@
 import nlcontrol.signals as sgnls
-from nlcontrol.visualisation import RendererBase
+from nlcontrol.visualisation import SystemRenderer, ParallelRenderer
 
 from copy import deepcopy, copy
 import warnings
@@ -28,7 +28,7 @@ DEFAULT_INTEGRATOR_OPTIONS = {
     'max_step': 0.0
 }
 
-class SystemBase(RendererBase):
+class SystemBase(object):
     """
     SystemBase(states, inputs, sys=None, name="system")
 
@@ -87,6 +87,7 @@ class SystemBase(RendererBase):
 
     """
     def __init__(self, states, inputs, sys=None, name="system", **kwargs):
+        print('Systembase: init called -> ', SystemBase.mro())
         self.sys = None
         self.name = None
         self.states = self.__process_init_input__(states)
@@ -94,7 +95,14 @@ class SystemBase(RendererBase):
         self.inputs = self.__process_init_input__(inputs)
         self.system = sys
         self.block_name = name
-        super().__init__(**kwargs)
+        self.renderer = None
+        if ('block_type' not in kwargs) or (kwargs['block_type'] == 'system'):
+            self.renderer = SystemRenderer(self, **kwargs)
+        elif kwargs['block_type'] == 'parallel':
+            self.renderer = ParallelRenderer(self, **kwargs)
+        elif kwargs['block_type'] == 'series':
+            self.renderer = SeriesRenderer(self, **kwargs)
+        
 
 
     def __str__(self):
@@ -418,7 +426,7 @@ class SystemBase(RendererBase):
                     states = Array(self.states.tolist() + sys_append.states.tolist())
                     state_equations2 = Array(msubs(expr, substitutions) for expr in sys_append.sys.state_equation)
                     state_equations = Array(self.sys.state_equation.tolist() + state_equations2.tolist())
-                return SystemBase(states, inputs, DynamicalSystem(state_equation=state_equations, state=states, input_=inputs, output_equation=output_equations))
+                return SystemBase(states, inputs, DynamicalSystem(state_equation=state_equations, state=states, input_=inputs, output_equation=output_equations), block_type="series", systems = [self, sys_append])
 
 
     def parallel(self, sys_append):
@@ -703,3 +711,5 @@ class SystemBase(RendererBase):
                 raise TypeError(error_text)
 
     
+    def show(self, **kwargs):
+        self.renderer.show(**kwargs)

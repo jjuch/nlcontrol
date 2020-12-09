@@ -173,6 +173,41 @@ def generate_common_node_renderer_info(position=None, in_direction='right', out_
     return info
 
 
+def generate_series_renderer_info(self_obj, systems, output=''):
+    number_of_blocks = 2
+    id_list = [uuid.uuid4().hex for _ in range(number_of_blocks)]
+
+    position = lambda x_off, y_off: (x_off, y_off)
+    info = {
+        'type': 'series',
+        'label': self_obj.block_name,
+        'rel_position': position,
+        'x_offset': 0,
+        'y_offset': 0,
+        'in_direction': 'right', 
+        'out_direction': 'right',
+        'connect_to': [],
+        'connect_from': [],
+        'nodes': dict(), 
+        'output': output
+    }
+    nodes_dict = info['nodes']
+
+    # Add system nodes
+    for i, system in enumerate(systems):
+        # i has no pointer, therefore declared as a default parameter
+        position = lambda x_off, y_off, i=i: (0.5 + x_off, y_off)
+        system_dict = generate_system_renderer_info(
+            system, 
+            position=position,
+            connect_to=[id_list[2]], 
+            connect_from=[id_list[3]])
+        new_dict = {id_list[i]: system_dict}
+        nodes_dict.update(new_dict)
+
+    return info
+
+
 def generate_parallel_renderer_info(self_obj, systems, output=''):
     number_of_blocks = 4
     id_list = [uuid.uuid4().hex for _ in range(number_of_blocks)]

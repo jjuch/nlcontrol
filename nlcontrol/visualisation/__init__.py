@@ -6,7 +6,10 @@ VISUALISATION LIBRARY (:mod: `nlcontrol.visualisation')
 
 Classes:
     * base:
-        RendererBase : base class for visuals renderer
+        RendererBase : base class for visuals renderer.
+        SystemRenderer : visual renderer for System blocks
+        ParallelRenderer : visual renderer for parallel block schemes
+        SeriesRenderer : visual renderer for Series block schemes
 
 Functions:
     * file_management : 
@@ -22,7 +25,7 @@ Functions:
 
 """
 
-from .base import RendererBase
+from .base import RendererBase, SystemRenderer, ParallelRenderer, SeriesRenderer
 from .file_management import __clean_temp_folder__, __write_to_browser__
 from .drawing_tools import draw_line, generate_renderer_sources
 from .utils import pretty_print_dict
