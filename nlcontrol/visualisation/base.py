@@ -1,5 +1,5 @@
 from nlcontrol.visualisation.file_management import __write_to_browser__
-from nlcontrol.visualisation.drawing_tools import draw_line, generate_system_renderer_info, generate_parallel_renderer_info, generate_renderer_sources
+from nlcontrol.visualisation.drawing_tools import draw_line, generate_system_renderer_info, generate_parallel_renderer_info, generate_renderer_sources, generate_connection_coordinates
 from nlcontrol.visualisation.utils import pretty_print_dict
 
 from bokeh.io import show, output_file, curdoc
@@ -142,12 +142,12 @@ class RendererBase():
         print("Showing the system {} with name '{}'".format(type(self), self.name))
         self.set_coordinates()
         
-        # source_systems, source_sum, source_commons = self.create_sources()
         source_systems, source_sum, source_commons = generate_renderer_sources(self.renderer_info)
         # pretty_print_dict(self.renderer_info)
-        exit()
 
-        x_polynomials, y_polynomials, output_lines = self.create_connections()
+        # x_polynomials, y_polynomials, output_lines = self.create_connections()
+        x_polynomials, y_polynomials, output_lines = generate_connection_coordinates(self.renderer_info)
+        # exit()
 
         glyph_system_text = Text(x="x", y="y", text="text", text_font_size="{}px".format(FONT_SIZE_IN_PIXELS), text_color="#000000", text_baseline="middle", text_align="center")
         glyph_system_box = Rect(x="x", y="y", width="width", height="height", fill_color="#cab2d6", fill_alpha=0.4)

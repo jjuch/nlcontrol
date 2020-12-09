@@ -1,4 +1,4 @@
-from nlcontrol.visualisation.utils import pretty_print_dict
+from nlcontrol.visualisation.utils import pretty_print_dict, flatten_nodes, create_direction_vector
 
 import numpy as np
 import uuid
@@ -156,7 +156,7 @@ def generate_summation_renderer_info(label='+', position=None, in_direction=['do
     }
     return info
 
-def generate_common_node_renderer_info(position=None, connect_to=[], connect_from=[], output=''):
+def generate_common_node_renderer_info(position=None, in_direction='right', out_direction=['up', 'down'], connect_to=[], connect_from=[], output=''):
     if position is None:
         position = lambda x_off, y_off: (x_off, y_off)
     info = {
@@ -166,12 +166,14 @@ def generate_common_node_renderer_info(position=None, connect_to=[], connect_fro
         'y_offset': 0,
         'connect_to': connect_to,
         'connect_from': connect_from,
-        'output': output
+        'output': output,
+        'in_direction': in_direction,
+        'out_direction': out_direction
     }
     return info
 
 
-def generate_parallel_renderer_info(self_obj, systems):
+def generate_parallel_renderer_info(self_obj, systems, output=''):
     number_of_blocks = 4
     id_list = [uuid.uuid4().hex for _ in range(number_of_blocks)]
     
@@ -186,7 +188,8 @@ def generate_parallel_renderer_info(self_obj, systems):
         'out_direction': 'right',
         'connect_to': [],
         'connect_from': [],
-        'nodes': dict()
+        'nodes': dict(), 
+        'output': output
     }
     nodes_dict = info['nodes']
 
@@ -274,6 +277,7 @@ def generate_renderer_sources(renderer_info, recursion_depth=0):
             text_sum.append(cs['label'])
             label_length = len(cs['label'])
             diameter.append(UNIT_CHARACTER_LENGTH * (label_length + 2))
+            cs['diameter'] = diameter[-1]
             radius.append(diameter[-1] / 2)
             # Get input coordinate
             in_coord = []
@@ -307,35 +311,55 @@ def generate_renderer_sources(renderer_info, recursion_depth=0):
             x_comm.append(cs['position'][0])
             y_comm.append(cs['position'][1])
             width_comm.append(UNIT_CHARACTER_LENGTH)
+            cs['diameter'] = width_comm[-1]
             # Set input and output coordinates
-            cs['in_pos'] = cs['position']
-            cs['out_pos'] = cs['position']
-        else:
-            if 'nodes' in cs:
-                sys_dict, sum_dict, comm_dict = generate_renderer_sources(cs['nodes'], recursion_depth=recursion_depth + 1)
-                # print(sys_dict)
-                # append recursive system data
-                x_sys.extend(sys_dict['x'])
-                y_sys.extend(sys_dict['y'])
-                text_sys.extend(sys_dict['text'])
-                width_sys.extend(sys_dict['width'])
-                height_sys.extend(sys_dict['height'])
-                classname.extend(sys_dict['classname'])
-                states.extend(sys_dict['states'])
-                output_sys.extend(sys_dict['output'])
-                # extend recursive sum data
-                x_sum.extend(sum_dict['x'])
-                y_sum.extend(sum_dict['y'])
-                text_sum.extend(sum_dict['text'])
-                diameter.extend(sum_dict['diameter'])
-                radius.extend(sum_dict['radius'])
-                output_sum.extend(sum_dict['output'])
-                # extend recursive common node data
-                x_comm.extend(comm_dict['x'])
-                y_comm.extend(comm_dict['y'])
-                width_comm.extend(comm_dict['width'])
+            if cs['in_direction'] == 'up':
+                in_coord = (x_comm[-1], y_comm[-1] + width_comm[-1] / 2)
+            elif cs['in_direction'] == 'down':
+                in_coord = (x_comm[-1], y_comm[-1] - width_comm[-1] / 2)
+            elif cs['in_direction'] == 'left':
+                in_coord = (x_comm[-1] + width_comm[-1] / 2, y_comm[-1])
+            elif cs['in_direction'] == 'right':
+                in_coord = (x_comm[-1] - width_comm[-1] / 2, y_comm[-1])
             else:
-                raise ValueError
+                error_text = "[Visualisation.drawing_tools] The directions can only be defined by the strings 'up', 'down', 'left', and 'right'."
+                raise ValueError(error_text)
+            cs['in_pos'] = in_coord
+            cs['out_pos'] = cs['position']
+        elif 'nodes' in cs:
+            cs_nodes = cs['nodes']
+            # Do first the recursion to add 'in_pos' and 'out_pos' to the renderer info of the children before it can be used in parent nodes
+            sys_dict, sum_dict, comm_dict = generate_renderer_sources(cs_nodes, recursion_depth=recursion_depth + 1)
+            # print(sys_dict)
+            # append recursive system data
+            x_sys.extend(sys_dict['x'])
+            y_sys.extend(sys_dict['y'])
+            text_sys.extend(sys_dict['text'])
+            width_sys.extend(sys_dict['width'])
+            height_sys.extend(sys_dict['height'])
+            classname.extend(sys_dict['classname'])
+            states.extend(sys_dict['states'])
+            output_sys.extend(sys_dict['output'])
+            # extend recursive sum data
+            x_sum.extend(sum_dict['x'])
+            y_sum.extend(sum_dict['y'])
+            text_sum.extend(sum_dict['text'])
+            diameter.extend(sum_dict['diameter'])
+            radius.extend(sum_dict['radius'])
+            output_sum.extend(sum_dict['output'])
+            # extend recursive common node data
+            x_comm.extend(comm_dict['x'])
+            y_comm.extend(comm_dict['y'])
+            width_comm.extend(comm_dict['width'])
+
+            #TODO: Should move to generate_parallel_renderer_info
+            if cs['type'] == 'parallel':
+                for parallel_node in cs_nodes:
+                    if cs_nodes[parallel_node]['type'] == 'common':
+                        cs['in_pos'] = cs_nodes[parallel_node]['position']
+                    elif cs_nodes[parallel_node]['type'] == 'summation':
+                        cs['out_pos'] = cs_nodes[parallel_node]['out_pos']
+            
 
     if recursion_depth == 0:
         source_systems = ColumnDataSource(dict(x=x_sys, y=y_sys, text=text_sys, width=width_sys, height=height_sys, classname=classname, states=states, output=output_sys))
@@ -348,6 +372,110 @@ def generate_renderer_sources(renderer_info, recursion_depth=0):
         sum_dict = {'x': x_sum, 'y': y_sum, 'text': text_sum, 'diameter': diameter, 'radius': radius, 'output': output_sum}
         comm_dict = {'x': x_comm, 'y': y_comm, 'width': width_comm}
         return sys_dict, sum_dict, comm_dict
+
+
+def generate_connection_coordinates(renderer_info):
+    x_polynomials = []
+    y_polynomials = []
+    output = []
+
+    new_renderer_info = flatten_nodes(renderer_info)
+    pretty_print_dict(new_renderer_info)
+    
+    for node in new_renderer_info:
+        cs = new_renderer_info[node]
+        polyn_x_coords = []
+        polyn_y_coords = []
+        print("================Test:")
+        pretty_print_dict(cs)
+        if 'diameter' in cs:
+            width = cs['diameter']
+        else:
+            width = abs(cs['out_pos'][0] - cs['in_pos'][0])
+        # Add an arrow to an empty input node without children
+        if (len(cs['connect_from']) == 0) and ('nodes' not in cs):
+            print('Yes: ', width)
+            # End coordinate
+            polyn_x_coords.append(cs['in_pos'][0])
+            polyn_y_coords.append(cs['in_pos'][1])
+            # Begin coordinate
+            sign = create_direction_vector(cs['in_direction'])
+            polyn_x_coords.append(cs['in_pos'][0] - sign[0] * width)
+            polyn_y_coords.append(cs['in_pos'][1] - sign[1] * width)
+
+            # Add flipped coordinates
+            polyn_x_coords.reverse()
+            polyn_y_coords.reverse()
+            x_polynomials.append(polyn_x_coords)
+            y_polynomials.append(polyn_y_coords)
+            # For index consistency
+            output.append(None)
+
+            polyn_x_coords = []
+            polyn_y_coords = []
+
+        # Add an arrow to an empty output node without children
+        if (len(cs['connect_to']) == 0) and ('nodes' not in cs):
+            # Begin coordinate
+            polyn_x_coords.append(cs['out_pos'][0])
+            polyn_y_coords.append(cs['out_pos'][1])
+            # End coordinate
+            sign = create_direction_vector(cs['out_direction'])
+            polyn_x_coords.append(cs['out_pos'][0] + sign[0] * width)
+            polyn_y_coords.append(cs['out_pos'][1] + sign[1] * width)
+
+            x_polynomials.append(polyn_x_coords)
+            y_polynomials.append(polyn_y_coords)
+            output.append(cs['output'])
+        else:
+            for connection in cs['connect_to']:
+                end_block = new_renderer_info[connection]
+                # Set start coordinate
+                start_coord = []
+                start_coord.extend(cs['out_pos'])
+                if type(cs['out_direction']) == list:
+                    #TODO: FIX: should depend on direction of arrows
+                    if cs['position'][1] < end_block['position'][1]:
+                        start_coord.append(cs['out_direction'][0])
+                    else:
+                        start_coord.append(cs['out_direction'][1])
+                else:
+                    start_coord.append(cs['out_direction'])
+                # Get end coordinate - initialize
+                stop_coord = []
+                # If the end block has multiple inputs, select the correct one.
+                if type(end_block['in_direction']) == list:
+                    #TODO: FIX: should depend on direction of arrows
+                    if cs['position'][1] > end_block['position'][1]:
+                        stop_coord.extend(end_block['in_pos'][0])
+                        stop_coord.append(end_block['in_direction'][0])
+                    else:
+                        stop_coord.extend(end_block['in_pos'][1])
+                        stop_coord.append(end_block['in_direction'][1])
+                else:
+                    stop_coord.extend(end_block['in_pos'])
+                    stop_coord.append(end_block['in_direction'])
+
+                # Draw line between start en stop coordinate
+                print(start_coord, " - ", stop_coord)
+                line_coordinates = draw_line(start_coord, stop_coord)
+                # Format coordinate lists
+                for line_coord in line_coordinates:
+                    polyn_x_coords.append(line_coord[0])
+                    polyn_y_coords.append(line_coord[1])
+                x_polynomials.append(polyn_x_coords)
+                y_polynomials.append(polyn_y_coords)
+                output.append(cs['output'])
+                polyn_x_coords = []
+                polyn_y_coords = []
+
+    return x_polynomials, y_polynomials, output
+
+                
+
+        
+
+
 
             
 
