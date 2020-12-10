@@ -89,7 +89,7 @@ class EulerLagrange(SystemBase):
     def __init__(self, states, inputs, sys=None, name="EL system", **kwargs):
         minimal_states, extended_states = self.__extend_states__(states)
         self.minimal_states = self.__process_init_input__(minimal_states)
-        super().__init__(extended_states, inputs, sys=sys, name=name, **kwargs)
+        super().__init__(extended_states, inputs, sys=sys, name=name, block_type='system', **kwargs)
         self._M = None
         self._C = None
         self._K = None

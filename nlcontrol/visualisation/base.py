@@ -1,5 +1,5 @@
 from nlcontrol.visualisation.file_management import __write_to_browser__
-from nlcontrol.visualisation.drawing_tools import draw_line, generate_system_renderer_info, generate_absolute_positions, generate_parallel_renderer_info, generate_renderer_sources, generate_connection_coordinates, generate_series_renderer_info
+from nlcontrol.visualisation.drawing_tools import draw_line, generate_relative_positions, generate_renderer_sources, generate_connection_coordinates, generate_series_renderer_info, update_renderer_info, generate_summation_renderer_info, generate_common_node_renderer_info
 from nlcontrol.visualisation.utils import pretty_print_dict
 
 from bokeh.io import show, output_file, curdoc
@@ -13,7 +13,7 @@ FONT_SIZE_IN_PIXELS = 15
 x_offset, y_offset = 0, 0
 
 class RendererBase(object):
-    def __init__(self, system_obj):
+    def __init__(self, system_obj, **kwargs):
         self.plot = None
         self.plot_dict = dict()
         self.system_obj = system_obj
@@ -32,10 +32,12 @@ class RendererBase(object):
 
     def show(self, open_browser=True):
         print("Showing the system {} with name '{}'".format(type(self.system_obj), self.system_obj.name))
-        generate_absolute_positions(self.renderer_info, renderer=self)
+        generate_relative_positions(self.renderer_info)
+        # print("===== renderer_info: ")
         # pretty_print_dict(self.renderer_info)
         
         source_systems, source_sum, source_commons = generate_renderer_sources(self.renderer_info)
+        # print("===== renderer_info: ")
         # pretty_print_dict(self.renderer_info)
 
         x_polynomials, y_polynomials, output_lines = generate_connection_coordinates(self.renderer_info)
@@ -123,7 +125,32 @@ class SystemRenderer(RendererBase):
         self.renderer_info = self.__init_renderer_info__(**kwargs)
 
     def __init_renderer_info__(self, **kwargs):
-        return super().__init_renderer_info__(generate_system_renderer_info, **kwargs)
+        return super().__init_renderer_info__(self.generate_system_renderer_info, **kwargs)
+
+    def generate_system_renderer_info(self, system_obj, position=None, connect_from=[], connect_to=[]):
+        if position is None:
+            position = lambda x_off, y_off, width: (x_off + width / 2, y_off)
+        separator = ", "
+        states_str = separator.join(\
+            [str(state) for state in system_obj.states])
+        info = {
+            'type': 'system',
+            'label': system_obj.block_name,
+            'rel_position': position,
+            # 'x_offset': 0,
+            # 'y_offset': 0,
+            'in_direction': 'right',
+            'out_direction': 'right',
+            'connect_to': connect_to,
+            'connect_from': connect_from,
+            'class_name': system_obj.__class__.__name__,
+            'states': states_str,
+            'output': ''
+        }
+        return info
+
+    def get_position_function_arguments(self, parent_offsets, renderer_info=None, unit_block_space=0.5):
+        return parent_offsets[0], parent_offsets[1], renderer_info['width']
 
     
     def set_coordinates(self, current_element=None):
@@ -142,20 +169,82 @@ class ParallelRenderer(RendererBase):
         self.renderer_info = self.__init_renderer_info__(**kwargs)
 
     def __init_renderer_info__(self, block_type="parallel", **kwargs):
-        print('ParallelRenderer : renderer_info')
         if 'systems' not in kwargs:
             error_text = "[RendererBase] In the case of a 'parallel' block_type a keyword argument 'systems' should be supplied."
             raise AttributeError(error_text)
-        return super().__init_renderer_info__(generate_parallel_renderer_info, **kwargs)
+        return super().__init_renderer_info__(self.generate_parallel_renderer_info, **kwargs)
 
-    def get_dimensions(self, renderer_info=None, unit_block_space=0.5):
+    def generate_parallel_renderer_info(self, system_obj, systems, output=''):
+        number_of_blocks = 4
+        id_list = [uuid.uuid4().hex for _ in range(number_of_blocks)]
+        
+        position = lambda x_off, y_off: (x_off, y_off)
+        
+        info = {
+            'type': 'parallel',
+            'label': system_obj.block_name,
+            'rel_position': position,
+            'x_offset': 0,
+            'y_offset': 0,
+            'in_direction': 'right', 
+            'out_direction': 'right',
+            'connect_to': [],
+            'connect_from': [],
+            'nodes': dict(), 
+            'output': output,
+            'renderer': self
+        }
+        nodes_dict = info['nodes']
+
+        # Add system nodes
+        sign = [1, -1]
+        for i, system in enumerate(systems):
+            # i has no pointer, therefore declared as a default parameter
+            position = lambda x_off, y_off, widths, heights, unit_block_space=0.5, i=i: (unit_block_space + widths[i] / 2 + x_off, sign[i] * (unit_block_space + heights[i])/2 + y_off)
+            new_renderer_info = update_renderer_info(
+                system.renderer.renderer_info,
+                id_list[i],
+                rel_position=position,
+                connect_to=[id_list[2]], 
+                connect_from=[id_list[3]],
+                renderer=system.renderer)
+            nodes_dict.update(new_renderer_info)
+        
+        # Add summation node
+        position = lambda x_off, y_off, widths, heights, unit_block_space=0.5: (2 * unit_block_space + max(widths[0:2]) + x_off, y_off)
+        summation_dict = generate_summation_renderer_info(
+            position=position, 
+            connect_from=[id_list[0], id_list[1]])
+        new_dict = {id_list[2]: summation_dict}
+        nodes_dict.update(new_dict)
+
+        # Add input_node (is origin)
+        position = lambda x_off, y_off, widths, heights, unit_block_space=0.5: (x_off, y_off)
+        input_node_dict = generate_common_node_renderer_info(
+            position=position, 
+            connect_to=[id_list[0], id_list[1]])
+        new_dict = {id_list[3]: input_node_dict}
+        nodes_dict.update(new_dict)
+
+        return info
+
+    def get_position_function_arguments(self, parent_offsets, renderer_info=None, unit_block_space=0.5):
+        if renderer_info is None:
+            renderer_info = self.renderer_info
+        widths, heights = self.get_dimensions(renderer_info=renderer_info)
+        return parent_offsets[0], parent_offsets[1], widths, heights, unit_block_space
+
+
+    def get_dimensions(self, renderer_info=None):
         # Get width and heights from each subsystem in the parallel block scheme. The order in the vectors is top_system, bottom_system, summation, common node.
         if renderer_info is None:
             renderer_info = self.renderer_info
         try:
-            print(list(renderer_info.keys()))
+            # print(list(renderer_info.keys()))
             uuid_parallel = list(renderer_info.keys())[0]
             parent = renderer_info[uuid_parallel]
+            # print("==== parent:")
+            # pretty_print_dict(parent)
             children_nodes = parent['nodes']
         except:
             error_text = "[Visualisation.ParallelRenderer] Supply the parallel node as renderer_info. No other nodes should be included."
@@ -164,6 +253,8 @@ class ParallelRenderer(RendererBase):
         heights = []
         for child_id in children_nodes:
             child_node = children_nodes[child_id]
+            # print("======= width?")
+            # pretty_print_dict(child_node)
             if 'diameter' in child_node:
                 widths.append(child_node['diameter'])
                 heights.append(child_node['diameter'])
@@ -176,7 +267,7 @@ class ParallelRenderer(RendererBase):
         if renderer_info is None:
             renderer_info = self.renderer_info
         # Get width and heights
-        widths, heights = self.get_dimensions(renderer_info=renderer_info, unit_block_space=unit_block_space)
+        widths, heights = self.get_dimensions(renderer_info=renderer_info)
         
         # Estimate width and height
         width = widths[3] + unit_block_space + max(widths[0], widths[1]) + unit_block_space + widths[2]

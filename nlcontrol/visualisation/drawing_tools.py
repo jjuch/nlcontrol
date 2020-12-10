@@ -2,6 +2,7 @@ from nlcontrol.visualisation.utils import pretty_print_dict, flatten_nodes, crea
 
 import numpy as np
 import uuid
+import copy
 
 from bokeh.models import ColumnDataSource
 
@@ -101,7 +102,6 @@ def draw_line(coord1, coord2, forbidden_direction=None, recursion_depth=0):
         new_coord, forbidden_dir = next_coord_logic(coord1, coord2, new_direction1, coord2_dir, right_direction)
 
     
-    # if new_coord[0] != coord2[0] or new_coord[1] != coord2[1]:
     if not equal_coordinates(new_coord, coord2):
         # Next recursion
         start_coord = (*new_coord, None)
@@ -125,28 +125,7 @@ def draw_line(coord1, coord2, forbidden_direction=None, recursion_depth=0):
         coordinate_list.append(new_coord)
         return coordinate_list
 
-    
-def generate_system_renderer_info(self_obj, position=None, connect_from=[], connect_to=[]):
-    if position is None:
-        position = lambda x_off, y_off, width: (x_off + width / 2, y_off)
-    separator = ", "
-    states_str = separator.join(\
-        [str(state) for state in self_obj.states])
-    info = {
-        'type': 'system',
-        'label': self_obj.block_name,
-        'rel_position': position,
-        'x_offset': 0,
-        'y_offset': 0,
-        'in_direction': 'right',
-        'out_direction': 'right',
-        'connect_to': connect_to,
-        'connect_from': connect_from,
-        'class_name': self_obj.__class__.__name__,
-        'states': states_str,
-        'output': ''
-    }
-    return info
+
 
 def generate_summation_renderer_info(label='+', position=None, in_direction=['down', 'up'], out_direction='right', connect_to=[], connect_from=[], output=''):
     if position is None:
@@ -155,8 +134,8 @@ def generate_summation_renderer_info(label='+', position=None, in_direction=['do
         'type': 'summation',
         'label': label,
         'rel_position': position,
-        'x_offset': 0,
-        'y_offset': 0,
+        # 'x_offset': 0,
+        # 'y_offset': 0,
         'in_direction': in_direction,
         'out_direction': out_direction,
         'connect_to': connect_to,
@@ -171,8 +150,8 @@ def generate_common_node_renderer_info(position=None, in_direction='right', out_
     info = {
         'type': 'common',
         'rel_position': position,
-        'x_offset': 0,
-        'y_offset': 0,
+        # 'x_offset': 0,
+        # 'y_offset': 0,
         'connect_to': connect_to,
         'connect_from': connect_from,
         'output': output,
@@ -216,69 +195,23 @@ def generate_series_renderer_info(self_obj, systems, output=''):
 
     return info
 
+def update_renderer_info(renderer_info, new_id, **kwargs):
+    old_id = list(renderer_info.keys())[0]
+    renderer_info_copy = copy.deepcopy(renderer_info[old_id])
+    for key in kwargs.keys():
+        renderer_info_copy[key] = kwargs[key]
+    return {new_id: renderer_info_copy}
 
-def generate_parallel_renderer_info(self_obj, systems, output=''):
-    number_of_blocks = 4
-    id_list = [uuid.uuid4().hex for _ in range(number_of_blocks)]
-    
-    position = lambda x_off, y_off: (x_off, y_off)
-    
-    info = {
-        'type': 'parallel',
-        'label': self_obj.block_name,
-        'rel_position': position,
-        'x_offset': 0,
-        'y_offset': 0,
-        'in_direction': 'right', 
-        'out_direction': 'right',
-        'connect_to': [],
-        'connect_from': [],
-        'nodes': dict(), 
-        'output': output
-    }
-    nodes_dict = info['nodes']
 
-    # Add system nodes
-    sign = [1, -1]
-    for i, system in enumerate(systems):
-        # i has no pointer, therefore declared as a default parameter
-        position = lambda x_off, y_off, widths, heights, unit_block_space=0.5, i=i: (unit_block_space + widths[i] / 2 + x_off, sign[i] * (unit_block_space + heights[i])/2 + y_off)
-        system_dict = generate_system_renderer_info(
-            system, 
-            position=position,
-            connect_to=[id_list[2]], 
-            connect_from=[id_list[3]])
-        new_dict = {id_list[i]: system_dict}
-        nodes_dict.update(new_dict)
-    
-    # Add summation node
-    position = lambda x_off, y_off, widths, heights, unit_block_space=0.5: (2 * unit_block_space + max(widths[0:2]) + x_off, y_off)
-    summation_dict = generate_summation_renderer_info(
-        position=position, 
-        connect_from=[id_list[0], id_list[1]])
-    new_dict = {id_list[2]: summation_dict}
-    nodes_dict.update(new_dict)
-
-    # Add input_node (is origin)
-    position = lambda x_off, y_off, widths, heights, unit_block_space=0.5: (x_off, y_off)
-    input_node_dict = generate_common_node_renderer_info(
-        position=position, 
-        connect_to=[id_list[0], id_list[1]])
-    new_dict = {id_list[3]: input_node_dict}
-    nodes_dict.update(new_dict)
-
-    return info
-
-def generate_absolute_positions(renderer_info, renderer=None, recursion_depth=0):
-    for node in renderer_info:
+def generate_relative_positions(renderer_info, recursion_depth=0):
+    for i, node in enumerate(renderer_info):
         cs = renderer_info[node]
+        # print("==== cs: ", recursion_depth)
+        # pretty_print_dict(cs)
         if cs['type'] == 'system':
             label_length = len(cs['label'])
             cs['width'] = UNIT_CHARACTER_LENGTH * (label_length + 2)
             cs['height'] = UNIT_CHARACTER_HEIGHT
-            if recursion_depth == 0:
-                arguments = (0, 0, cs['width'])
-                eval_position_functions(renderer_info, arguments)
         elif cs['type'] == 'summation':
             label_length = len(cs['label'])
             cs['diameter'] = UNIT_CHARACTER_LENGTH * (label_length + 2)
@@ -288,22 +221,34 @@ def generate_absolute_positions(renderer_info, renderer=None, recursion_depth=0)
         elif 'nodes' in cs:
             cs_nodes = cs['nodes']
             # First calculate width and height of children
-            generate_absolute_positions(cs_nodes, recursion_depth=recursion_depth + 1)
-            # Set offsets for each child
-            widths, heights = renderer.get_dimensions(renderer_info=renderer_info, unit_block_space=UNIT_BLOCK_SPACE)
-            arguments = (cs['x_offset'], cs['y_offset'], widths, heights, UNIT_BLOCK_SPACE)
-            eval_position_functions(cs_nodes, arguments)
+            generate_relative_positions(cs_nodes, recursion_depth=recursion_depth + 1)
+            # # Set offsets for each child
+            parent_renderer_info = {node: cs}
+            # widths, heights = cs['renderer'].get_dimensions(renderer_info=parent_renderer_info, unit_block_space=UNIT_BLOCK_SPACE)
+            # arguments = (cs['x_offset'], cs['y_offset'], widths, heights, UNIT_BLOCK_SPACE)
+            # eval_position_functions(cs_nodes, arguments)
             # Calculate the width and height of parent
-            width, height = renderer.calculate_dimension(renderer_info=renderer_info, unit_block_space=UNIT_BLOCK_SPACE)
+            width, height = cs['renderer'].calculate_dimension(renderer_info=parent_renderer_info, unit_block_space=UNIT_BLOCK_SPACE)
             cs['width'] = width
             cs['height'] = height
-            if recursion_depth == 0:
-                eval_position_functions(renderer_info, (0, 0))
+            # if recursion_depth == 0:
+            #     eval_position_functions(renderer_info, (0, 0))
+
 
 def eval_position_functions(nodes, arguments):
     for node_id in nodes:
         cn = nodes[node_id]
-        cn['position'] = cn['rel_position'](*arguments)
+        position = cn['rel_position'](*arguments)
+        print("==== old:")
+        pretty_print_dict(cn)
+        print("Position: ", position)
+        if 'nodes' in cn:
+            cn['x_offset'] = position[0]
+            cn['y_offset'] = position[1]
+        cn['position'] = position
+        print("==== new:")
+        pretty_print_dict(cn)
+            
 
 def generate_renderer_sources(renderer_info, recursion_depth=0):
     x_sys = []
@@ -328,6 +273,9 @@ def generate_renderer_sources(renderer_info, recursion_depth=0):
     for node in renderer_info:
         cs = renderer_info[node]
         if cs['type'] == 'system':
+            if recursion_depth == 0:
+                arguments = (0, 0, cs['width'])
+                eval_position_functions(renderer_info, arguments)
             # Set coordinate of center of block
             x_sys.append(cs['position'][0])
             y_sys.append(cs['position'][1])
@@ -405,9 +353,17 @@ def generate_renderer_sources(renderer_info, recursion_depth=0):
             cs['out_pos'] = cs['position']
         elif 'nodes' in cs:
             cs_nodes = cs['nodes']
+            parent_renderer_info = {node: cs}
+            parent_offsets = [cs['x_offset'], cs['y_offset']]
+            arguments = cs['renderer'].get_position_function_arguments(
+                parent_offsets,
+                renderer_info=parent_renderer_info,
+                unit_block_space=UNIT_BLOCK_SPACE
+            )
+            eval_position_functions(cs_nodes, arguments)
             # Do first the recursion to add 'in_pos' and 'out_pos' to the renderer info of the children before it can be used in parent nodes
             sys_dict, sum_dict, comm_dict = generate_renderer_sources(cs_nodes, recursion_depth=recursion_depth + 1)
-            # print(sys_dict)
+
             # append recursive system data
             x_sys.extend(sys_dict['x'])
             y_sys.extend(sys_dict['y'])
@@ -457,8 +413,8 @@ def generate_connection_coordinates(renderer_info):
     output = []
 
     new_renderer_info = flatten_nodes(renderer_info)
-    print("===== renderer info")
-    pretty_print_dict(new_renderer_info)
+    # print("===== renderer info")
+    # pretty_print_dict(new_renderer_info)
     
     for node in new_renderer_info:
         cs = new_renderer_info[node]
