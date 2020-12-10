@@ -1,5 +1,5 @@
 from nlcontrol.visualisation.file_management import __write_to_browser__
-from nlcontrol.visualisation.drawing_tools import draw_line, generate_system_renderer_info, generate_parallel_renderer_info, generate_renderer_sources, generate_connection_coordinates, generate_series_renderer_info
+from nlcontrol.visualisation.drawing_tools import draw_line, generate_system_renderer_info, generate_absolute_positions, generate_parallel_renderer_info, generate_renderer_sources, generate_connection_coordinates, generate_series_renderer_info
 from nlcontrol.visualisation.utils import pretty_print_dict
 
 from bokeh.io import show, output_file, curdoc
@@ -13,16 +13,27 @@ FONT_SIZE_IN_PIXELS = 15
 x_offset, y_offset = 0, 0
 
 class RendererBase(object):
-    def __init__(self, system_obj, **kwargs):
-        print('RendererBase: init called')
+    def __init__(self, system_obj):
         self.plot = None
         self.plot_dict = dict()
         self.system_obj = system_obj
         self.renderer_info = None
 
+    def __init_renderer_info__(self, generate_renderer_info_function, block_type="system", **kwargs):
+        unique_id = uuid.uuid4().hex
+        info = {unique_id : dict()}
+        info_id = info[unique_id]
+        if 'block_type' in kwargs:
+            block_type = kwargs['block_type']
+        print(block_type)
+        info_dict = generate_renderer_info_function(self.system_obj, **kwargs)
+        info_id.update(info_dict)
+        return info
+
     def show(self, open_browser=True):
         print("Showing the system {} with name '{}'".format(type(self.system_obj), self.system_obj.name))
-        self.set_coordinates()
+        generate_absolute_positions(self.renderer_info, renderer=self)
+        # pretty_print_dict(self.renderer_info)
         
         source_systems, source_sum, source_commons = generate_renderer_sources(self.renderer_info)
         # pretty_print_dict(self.renderer_info)
@@ -108,33 +119,11 @@ class RendererBase(object):
 
 class SystemRenderer(RendererBase):
     def __init__(self, system_obj, **kwargs):
-        print('SystemRenderer: init called')
         super().__init__(system_obj, **kwargs)
         self.renderer_info = self.__init_renderer_info__(**kwargs)
 
-    def __init_renderer_info__(self, block_type="system", **kwargs):
-        print('SystemRenderer : renderer_info')
-        unique_id = uuid.uuid4().hex
-        info = {unique_id : dict()}
-        info_id = info[unique_id]
-        if 'block_type' in kwargs:
-            block_type = kwargs['block_type']
-        # print(block_type)
-
-        if block_type == "system":
-            info_dict = generate_system_renderer_info(self.system_obj)
-        elif block_type == "parallel":
-            if 'systems' not in kwargs:
-                error_text = "[RendererBase] In the case of a 'parallel' block_type a keyword argument 'systems' should be supplied."
-                raise AttributeError(error_text)
-            info_dict = generate_parallel_renderer_info(self.system_obj, kwargs['systems'])
-        elif block_type == "series":
-            if 'systems' not in kwargs:
-                error_text = "[RendererBase] In the case of a 'series' block_type a keyword argument 'systems' should be supplied."
-                raise AttributeError(error_text)
-            info_dict = generate_series_renderer_info(self.system_obj, kwargs['systems'])
-        info_id.update(info_dict)
-        return info
+    def __init_renderer_info__(self, **kwargs):
+        return super().__init_renderer_info__(generate_system_renderer_info, **kwargs)
 
     
     def set_coordinates(self, current_element=None):
@@ -149,18 +138,65 @@ class SystemRenderer(RendererBase):
 
 class ParallelRenderer(RendererBase):
     def __init__(self, system_obj, **kwargs):
-        print('ParallelRenderer: init called')
-        super().__init__(system_obj, **kwargs)
+        super().__init__(system_obj)
         self.renderer_info = self.__init_renderer_info__(**kwargs)
 
     def __init_renderer_info__(self, block_type="parallel", **kwargs):
         print('ParallelRenderer : renderer_info')
+        if 'systems' not in kwargs:
+            error_text = "[RendererBase] In the case of a 'parallel' block_type a keyword argument 'systems' should be supplied."
+            raise AttributeError(error_text)
+        return super().__init_renderer_info__(generate_parallel_renderer_info, **kwargs)
+
+    def get_dimensions(self, renderer_info=None, unit_block_space=0.5):
+        # Get width and heights from each subsystem in the parallel block scheme. The order in the vectors is top_system, bottom_system, summation, common node.
+        if renderer_info is None:
+            renderer_info = self.renderer_info
+        try:
+            print(list(renderer_info.keys()))
+            uuid_parallel = list(renderer_info.keys())[0]
+            parent = renderer_info[uuid_parallel]
+            children_nodes = parent['nodes']
+        except:
+            error_text = "[Visualisation.ParallelRenderer] Supply the parallel node as renderer_info. No other nodes should be included."
+            raise ValueError(error_text)
+        widths = []
+        heights = []
+        for child_id in children_nodes:
+            child_node = children_nodes[child_id]
+            if 'diameter' in child_node:
+                widths.append(child_node['diameter'])
+                heights.append(child_node['diameter'])
+            else:
+                widths.append(child_node['width'])
+                heights.append(child_node['height'])
+        return widths, heights
+
+    def calculate_dimension(self, renderer_info=None, unit_block_space=0.5):
+        if renderer_info is None:
+            renderer_info = self.renderer_info
+        # Get width and heights
+        widths, heights = self.get_dimensions(renderer_info=renderer_info, unit_block_space=unit_block_space)
+        
+        # Estimate width and height
+        width = widths[3] + unit_block_space + max(widths[0], widths[1]) + unit_block_space + widths[2]
+        height = heights[0] + unit_block_space + heights[1]
+        return width, height
+
 
 class SeriesRenderer(RendererBase):
     def __init__(self, system_obj, **kwargs):
-        super().__init__(system_obj, **kwargs)
+        super().__init__(system_obj)
         self.renderer_info = self.__init_renderer_info__(**kwargs)
 
     def __init_renderer_info__(self, block_type="series", **kwargs):
-        print(SeriesRenderer: renderer_info)
+        if 'systems' not in kwargs:
+            error_text = "[RendererBase] In the case of a 'series' block_type a keyword argument 'systems' should be supplied."
+            raise AttributeError(error_text)
+        return super().__init_renderer_info__(generate_series_renderer_info, **kwargs)
+
+    def calculate_dimension(self, renderer_info=None, unit_block_space=0.5):
+        # Get width and heights from each subsystem in the series block scheme. The order in the vectors is left_system, right_system.
+        pass
+        
         

@@ -87,7 +87,6 @@ class SystemBase(object):
 
     """
     def __init__(self, states, inputs, sys=None, name="system", **kwargs):
-        print('Systembase: init called -> ', SystemBase.mro())
         self.sys = None
         self.name = None
         self.states = self.__process_init_input__(states)

@@ -8,9 +8,12 @@ from bokeh.models import ColumnDataSource
 UNIT_WIRE_LENGTH = 0.3
 UNIT_CHARACTER_LENGTH = 0.03
 UNIT_CHARACTER_HEIGHT = 0.1
+UNIT_BLOCK_SPACE = 0.5
+
 
 
 def draw_line(coord1, coord2, forbidden_direction=None, recursion_depth=0):
+    print(recursion_depth, ": ", coord1, " -> ", coord2, " - ", forbidden_direction)
     # Initialize
     coordinate_list = []
     if recursion_depth == 0:
@@ -45,6 +48,11 @@ def draw_line(coord1, coord2, forbidden_direction=None, recursion_depth=0):
 
     def same_plane(direction1, direction2):
         return direction1[2] == direction2[2]
+
+    def equal_coordinates(coordinate1, coordinate2):
+        result_list = np.isclose(coordinate1[0:2], coordinate2[0:2], rtol=1e-05, atol=1e-08, equal_nan=False)
+        return False not in result_list
+
 
     def next_coord_logic(coord1, coord2, dir1, dir2, right_direction):
         forbidden_direction = dir1
@@ -93,7 +101,8 @@ def draw_line(coord1, coord2, forbidden_direction=None, recursion_depth=0):
         new_coord, forbidden_dir = next_coord_logic(coord1, coord2, new_direction1, coord2_dir, right_direction)
 
     
-    if new_coord[0] != coord2[0] or new_coord[1] != coord2[1]:
+    # if new_coord[0] != coord2[0] or new_coord[1] != coord2[1]:
+    if not equal_coordinates(new_coord, coord2):
         # Next recursion
         start_coord = (*new_coord, None)
         if recursion_depth <= 4:
@@ -119,7 +128,7 @@ def draw_line(coord1, coord2, forbidden_direction=None, recursion_depth=0):
     
 def generate_system_renderer_info(self_obj, position=None, connect_from=[], connect_to=[]):
     if position is None:
-        position = lambda x_off, y_off: (x_off, y_off)
+        position = lambda x_off, y_off, width: (x_off + width / 2, y_off)
     separator = ", "
     states_str = separator.join(\
         [str(state) for state in self_obj.states])
@@ -213,6 +222,7 @@ def generate_parallel_renderer_info(self_obj, systems, output=''):
     id_list = [uuid.uuid4().hex for _ in range(number_of_blocks)]
     
     position = lambda x_off, y_off: (x_off, y_off)
+    
     info = {
         'type': 'parallel',
         'label': self_obj.block_name,
@@ -229,9 +239,10 @@ def generate_parallel_renderer_info(self_obj, systems, output=''):
     nodes_dict = info['nodes']
 
     # Add system nodes
+    sign = [1, -1]
     for i, system in enumerate(systems):
         # i has no pointer, therefore declared as a default parameter
-        position = lambda x_off, y_off, i=i: (0.5 + x_off, 0.5 * i + y_off)
+        position = lambda x_off, y_off, widths, heights, unit_block_space=0.5, i=i: (unit_block_space + widths[i] / 2 + x_off, sign[i] * (unit_block_space + heights[i])/2 + y_off)
         system_dict = generate_system_renderer_info(
             system, 
             position=position,
@@ -241,15 +252,15 @@ def generate_parallel_renderer_info(self_obj, systems, output=''):
         nodes_dict.update(new_dict)
     
     # Add summation node
-    position = lambda x_off, y_off: (1 + x_off, 0.25 + y_off)
+    position = lambda x_off, y_off, widths, heights, unit_block_space=0.5: (2 * unit_block_space + max(widths[0:2]) + x_off, y_off)
     summation_dict = generate_summation_renderer_info(
         position=position, 
         connect_from=[id_list[0], id_list[1]])
     new_dict = {id_list[2]: summation_dict}
     nodes_dict.update(new_dict)
 
-    # Add input_node
-    position = lambda x_off, y_off: (x_off, 0.25 + y_off)
+    # Add input_node (is origin)
+    position = lambda x_off, y_off, widths, heights, unit_block_space=0.5: (x_off, y_off)
     input_node_dict = generate_common_node_renderer_info(
         position=position, 
         connect_to=[id_list[0], id_list[1]])
@@ -258,6 +269,41 @@ def generate_parallel_renderer_info(self_obj, systems, output=''):
 
     return info
 
+def generate_absolute_positions(renderer_info, renderer=None, recursion_depth=0):
+    for node in renderer_info:
+        cs = renderer_info[node]
+        if cs['type'] == 'system':
+            label_length = len(cs['label'])
+            cs['width'] = UNIT_CHARACTER_LENGTH * (label_length + 2)
+            cs['height'] = UNIT_CHARACTER_HEIGHT
+            if recursion_depth == 0:
+                arguments = (0, 0, cs['width'])
+                eval_position_functions(renderer_info, arguments)
+        elif cs['type'] == 'summation':
+            label_length = len(cs['label'])
+            cs['diameter'] = UNIT_CHARACTER_LENGTH * (label_length + 2)
+            cs['radius'] = cs['diameter'] / 2
+        elif cs['type'] == 'common':
+            cs['diameter'] = UNIT_CHARACTER_LENGTH
+        elif 'nodes' in cs:
+            cs_nodes = cs['nodes']
+            # First calculate width and height of children
+            generate_absolute_positions(cs_nodes, recursion_depth=recursion_depth + 1)
+            # Set offsets for each child
+            widths, heights = renderer.get_dimensions(renderer_info=renderer_info, unit_block_space=UNIT_BLOCK_SPACE)
+            arguments = (cs['x_offset'], cs['y_offset'], widths, heights, UNIT_BLOCK_SPACE)
+            eval_position_functions(cs_nodes, arguments)
+            # Calculate the width and height of parent
+            width, height = renderer.calculate_dimension(renderer_info=renderer_info, unit_block_space=UNIT_BLOCK_SPACE)
+            cs['width'] = width
+            cs['height'] = height
+            if recursion_depth == 0:
+                eval_position_functions(renderer_info, (0, 0))
+
+def eval_position_functions(nodes, arguments):
+    for node_id in nodes:
+        cn = nodes[node_id]
+        cn['position'] = cn['rel_position'](*arguments)
 
 def generate_renderer_sources(renderer_info, recursion_depth=0):
     x_sys = []
@@ -287,9 +333,8 @@ def generate_renderer_sources(renderer_info, recursion_depth=0):
             y_sys.append(cs['position'][1])
             # Set dimensions
             text_sys.append(cs['label'])
-            label_length = len(cs['label'])
-            width_sys.append(UNIT_CHARACTER_LENGTH * (label_length + 2))
-            height_sys.append(UNIT_CHARACTER_HEIGHT)
+            width_sys.append(cs['width'])
+            height_sys.append(cs['height'])
             left_coord = (x_sys[-1] - width_sys[-1] / 2, y_sys[-1])
             right_coord = (x_sys[-1] + width_sys[-1] / 2, y_sys[-1])
             # Get input and output coordinates
@@ -310,10 +355,8 @@ def generate_renderer_sources(renderer_info, recursion_depth=0):
             # Set dimensions
             output_sum.append(cs['output'])
             text_sum.append(cs['label'])
-            label_length = len(cs['label'])
-            diameter.append(UNIT_CHARACTER_LENGTH * (label_length + 2))
-            cs['diameter'] = diameter[-1]
-            radius.append(diameter[-1] / 2)
+            diameter.append(cs['diameter'])
+            radius.append(cs['radius'])
             # Get input coordinate
             in_coord = []
             for direc in cs['in_direction']:
@@ -345,8 +388,7 @@ def generate_renderer_sources(renderer_info, recursion_depth=0):
         elif cs['type'] == 'common':
             x_comm.append(cs['position'][0])
             y_comm.append(cs['position'][1])
-            width_comm.append(UNIT_CHARACTER_LENGTH)
-            cs['diameter'] = width_comm[-1]
+            width_comm.append(cs['diameter'])
             # Set input and output coordinates
             if cs['in_direction'] == 'up':
                 in_coord = (x_comm[-1], y_comm[-1] + width_comm[-1] / 2)
@@ -415,21 +457,19 @@ def generate_connection_coordinates(renderer_info):
     output = []
 
     new_renderer_info = flatten_nodes(renderer_info)
+    print("===== renderer info")
     pretty_print_dict(new_renderer_info)
     
     for node in new_renderer_info:
         cs = new_renderer_info[node]
         polyn_x_coords = []
         polyn_y_coords = []
-        print("================Test:")
-        pretty_print_dict(cs)
         if 'diameter' in cs:
             width = cs['diameter']
         else:
             width = abs(cs['out_pos'][0] - cs['in_pos'][0])
         # Add an arrow to an empty input node without children
         if (len(cs['connect_from']) == 0) and ('nodes' not in cs):
-            print('Yes: ', width)
             # End coordinate
             polyn_x_coords.append(cs['in_pos'][0])
             polyn_y_coords.append(cs['in_pos'][1])
