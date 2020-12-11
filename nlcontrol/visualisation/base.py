@@ -137,8 +137,6 @@ class SystemRenderer(RendererBase):
             'type': 'system',
             'label': system_obj.block_name,
             'rel_position': position,
-            # 'x_offset': 0,
-            # 'y_offset': 0,
             'in_direction': 'right',
             'out_direction': 'right',
             'connect_to': connect_to,
@@ -199,8 +197,13 @@ class ParallelRenderer(RendererBase):
         # Add system nodes
         sign = [1, -1]
         for i, system in enumerate(systems):
+            sys_renderer_info = system.renderer.renderer_info
+            system_id = list(sys_renderer_info.keys())[0]
             # i has no pointer, therefore declared as a default parameter
-            position = lambda x_off, y_off, widths, heights, unit_block_space=0.5, i=i: (unit_block_space + widths[i] / 2 + x_off, sign[i] * (unit_block_space + heights[i])/2 + y_off)
+            if 'nodes' in system.renderer.renderer_info[system_id]:
+                position = lambda x_off, y_off, widths, heights, unit_block_space=0.5, i=i: (unit_block_space + x_off, sign[i] * (unit_block_space + heights[i])/2 + y_off)
+            else:
+                position = lambda x_off, y_off, widths, heights, unit_block_space=0.5, i=i: (unit_block_space + widths[i] / 2 + x_off, sign[i] * (unit_block_space + heights[i])/2 + y_off)
             new_renderer_info = update_renderer_info(
                 system.renderer.renderer_info,
                 id_list[i],
@@ -270,6 +273,9 @@ class ParallelRenderer(RendererBase):
         widths, heights = self.get_dimensions(renderer_info=renderer_info)
         
         # Estimate width and height
+        print("====== renderer info:")
+        pretty_print_dict(renderer_info)
+        print('widths: ', widths)
         width = widths[3] + unit_block_space + max(widths[0], widths[1]) + unit_block_space + widths[2]
         height = heights[0] + unit_block_space + heights[1]
         return width, height

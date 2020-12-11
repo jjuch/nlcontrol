@@ -197,7 +197,7 @@ def generate_series_renderer_info(self_obj, systems, output=''):
 
 def update_renderer_info(renderer_info, new_id, **kwargs):
     old_id = list(renderer_info.keys())[0]
-    renderer_info_copy = copy.deepcopy(renderer_info[old_id])
+    renderer_info_copy = copy.copy(renderer_info[old_id])
     for key in kwargs.keys():
         renderer_info_copy[key] = kwargs[key]
     return {new_id: renderer_info_copy}
@@ -239,15 +239,15 @@ def eval_position_functions(nodes, arguments):
     for node_id in nodes:
         cn = nodes[node_id]
         position = cn['rel_position'](*arguments)
-        print("==== old:")
-        pretty_print_dict(cn)
-        print("Position: ", position)
+        # print("==== old:")
+        # pretty_print_dict(cn)
+        # print("Position: ", position)
         if 'nodes' in cn:
             cn['x_offset'] = position[0]
             cn['y_offset'] = position[1]
         cn['position'] = position
-        print("==== new:")
-        pretty_print_dict(cn)
+        # print("==== new:")
+        # pretty_print_dict(cn)
             
 
 def generate_renderer_sources(renderer_info, recursion_depth=0):

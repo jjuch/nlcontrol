@@ -8,11 +8,11 @@ def pretty_print_dict(dict_data: dict):
 
 def flatten_nodes(dict_data: dict, recursion_depth=0):
     flat_dict = dict()
-    dict_data_copy = copy.deepcopy(dict_data)
+    dict_data_copy = copy.copy(dict_data)
     for node in dict_data_copy:
-        cs = dict_data_copy[node]
+        cs = copy.copy(dict_data_copy[node])
         if 'nodes' in cs:
-            cs_nodes = copy.deepcopy(cs['nodes'])
+            cs_nodes = copy.copy(cs['nodes'])
             cs['nodes'] = dict()
             flat_nodes = flatten_nodes(cs_nodes, recursion_depth = recursion_depth + 1)
             flat_dict.update(flat_nodes)
