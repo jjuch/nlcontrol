@@ -161,40 +161,6 @@ def generate_common_node_renderer_info(position=None, in_direction='right', out_
     return info
 
 
-def generate_series_renderer_info(self_obj, systems, output=''):
-    number_of_blocks = 2
-    id_list = [uuid.uuid4().hex for _ in range(number_of_blocks)]
-
-    position = lambda x_off, y_off: (x_off, y_off)
-    info = {
-        'type': 'series',
-        'label': self_obj.block_name,
-        'rel_position': position,
-        'x_offset': 0,
-        'y_offset': 0,
-        'in_direction': 'right', 
-        'out_direction': 'right',
-        'connect_to': [],
-        'connect_from': [],
-        'nodes': dict(), 
-        'output': output
-    }
-    nodes_dict = info['nodes']
-
-    # Add system nodes
-    for i, system in enumerate(systems):
-        # i has no pointer, therefore declared as a default parameter
-        position = lambda x_off, y_off, i=i: (0.5 + x_off, y_off)
-        system_dict = generate_system_renderer_info(
-            system, 
-            position=position,
-            connect_to=[id_list[2]], 
-            connect_from=[id_list[3]])
-        new_dict = {id_list[i]: system_dict}
-        nodes_dict.update(new_dict)
-
-    return info
-
 def update_renderer_info(renderer_info, new_id, **kwargs):
     old_id = list(renderer_info.keys())[0]
     renderer_info_copy = copy.copy(renderer_info[old_id])
@@ -392,6 +358,13 @@ def generate_renderer_sources(renderer_info, recursion_depth=0):
                         cs['in_pos'] = cs_nodes[parallel_node]['position']
                     elif cs_nodes[parallel_node]['type'] == 'summation':
                         cs['out_pos'] = cs_nodes[parallel_node]['out_pos']
+            elif cs['type'] == 'series':
+                for i, series_node in enumerate(cs_nodes):
+                    if i == 0:
+                        cs['in_pos'] = cs_nodes[series_node]['in_pos']
+                    elif i == len(cs_nodes) - 1:
+                        cs['out_pos'] = cs_nodes[series_node]['out_pos']
+
             
 
     if recursion_depth == 0:
@@ -420,6 +393,8 @@ def generate_connection_coordinates(renderer_info):
         cs = new_renderer_info[node]
         polyn_x_coords = []
         polyn_y_coords = []
+        # print("===== cs:")
+        # pretty_print_dict(cs)
         if 'diameter' in cs:
             width = cs['diameter']
         else:

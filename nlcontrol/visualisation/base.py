@@ -1,5 +1,5 @@
 from nlcontrol.visualisation.file_management import __write_to_browser__
-from nlcontrol.visualisation.drawing_tools import draw_line, generate_relative_positions, generate_renderer_sources, generate_connection_coordinates, generate_series_renderer_info, update_renderer_info, generate_summation_renderer_info, generate_common_node_renderer_info
+from nlcontrol.visualisation.drawing_tools import draw_line, generate_relative_positions, generate_renderer_sources, generate_connection_coordinates, update_renderer_info, generate_summation_renderer_info, generate_common_node_renderer_info
 from nlcontrol.visualisation.utils import pretty_print_dict
 
 from bokeh.io import show, output_file, curdoc
@@ -29,6 +29,34 @@ class RendererBase(object):
         info_dict = generate_renderer_info_function(self.system_obj, **kwargs)
         info_id.update(info_dict)
         return info
+
+    def get_dimensions(self, renderer_info=None):
+        # Get width and heights from each subsystem in the parallel block scheme. The order in the vectors is top_system, bottom_system, summation, common node.
+        if renderer_info is None:
+            renderer_info = self.renderer_info
+        try:
+            # print(list(renderer_info.keys()))
+            uuid_parallel = list(renderer_info.keys())[0]
+            parent = renderer_info[uuid_parallel]
+            # print("==== parent:")
+            # pretty_print_dict(parent)
+            children_nodes = parent['nodes']
+        except:
+            error_text = "[Visualisation.RendererBase] Supply the single parent as renderer_info. No other nodes should be included."
+            raise ValueError(error_text)
+        widths = []
+        heights = []
+        for child_id in children_nodes:
+            child_node = children_nodes[child_id]
+            # print("======= width?")
+            # pretty_print_dict(child_node)
+            if 'diameter' in child_node:
+                widths.append(child_node['diameter'])
+                heights.append(child_node['diameter'])
+            else:
+                widths.append(child_node['width'])
+                heights.append(child_node['height'])
+        return widths, heights
 
     def show(self, open_browser=True):
         print("Showing the system {} with name '{}'".format(type(self.system_obj), self.system_obj.name))
@@ -147,6 +175,11 @@ class SystemRenderer(RendererBase):
         }
         return info
 
+    def get_dimensions(self, **kwargs):
+        error_text = "[Visualisation.SystemRenderer] The SystemRenderer class has no useful module called `get_dimensions'."
+        raise ModuleNotFoundError(error_text)
+
+
     def get_position_function_arguments(self, parent_offsets, renderer_info=None, unit_block_space=0.5):
         return parent_offsets[0], parent_offsets[1], renderer_info['width']
 
@@ -160,6 +193,8 @@ class SystemRenderer(RendererBase):
             if 'nodes' in current_data:
                 self.set_coordinates(current_element=current_data['nodes'])
         # print(self.renderer_info)
+
+
 
 class ParallelRenderer(RendererBase):
     def __init__(self, system_obj, **kwargs):
@@ -195,7 +230,7 @@ class ParallelRenderer(RendererBase):
         nodes_dict = info['nodes']
 
         # Add system nodes
-        sign = [1, -1]
+        sign = [1, -1] # One system above and one below reference
         for i, system in enumerate(systems):
             sys_renderer_info = system.renderer.renderer_info
             system_id = list(sys_renderer_info.keys())[0]
@@ -238,44 +273,13 @@ class ParallelRenderer(RendererBase):
         return parent_offsets[0], parent_offsets[1], widths, heights, unit_block_space
 
 
-    def get_dimensions(self, renderer_info=None):
-        # Get width and heights from each subsystem in the parallel block scheme. The order in the vectors is top_system, bottom_system, summation, common node.
-        if renderer_info is None:
-            renderer_info = self.renderer_info
-        try:
-            # print(list(renderer_info.keys()))
-            uuid_parallel = list(renderer_info.keys())[0]
-            parent = renderer_info[uuid_parallel]
-            # print("==== parent:")
-            # pretty_print_dict(parent)
-            children_nodes = parent['nodes']
-        except:
-            error_text = "[Visualisation.ParallelRenderer] Supply the parallel node as renderer_info. No other nodes should be included."
-            raise ValueError(error_text)
-        widths = []
-        heights = []
-        for child_id in children_nodes:
-            child_node = children_nodes[child_id]
-            # print("======= width?")
-            # pretty_print_dict(child_node)
-            if 'diameter' in child_node:
-                widths.append(child_node['diameter'])
-                heights.append(child_node['diameter'])
-            else:
-                widths.append(child_node['width'])
-                heights.append(child_node['height'])
-        return widths, heights
-
     def calculate_dimension(self, renderer_info=None, unit_block_space=0.5):
         if renderer_info is None:
             renderer_info = self.renderer_info
-        # Get width and heights
+        # Get width and heights of children nodes
         widths, heights = self.get_dimensions(renderer_info=renderer_info)
         
-        # Estimate width and height
-        print("====== renderer info:")
-        pretty_print_dict(renderer_info)
-        print('widths: ', widths)
+        # Estimate width and height of parent node
         width = widths[3] + unit_block_space + max(widths[0], widths[1]) + unit_block_space + widths[2]
         height = heights[0] + unit_block_space + heights[1]
         return width, height
@@ -290,10 +294,74 @@ class SeriesRenderer(RendererBase):
         if 'systems' not in kwargs:
             error_text = "[RendererBase] In the case of a 'series' block_type a keyword argument 'systems' should be supplied."
             raise AttributeError(error_text)
-        return super().__init_renderer_info__(generate_series_renderer_info, **kwargs)
+        return super().__init_renderer_info__(self.generate_series_renderer_info, **kwargs)
+
+
+    def generate_series_renderer_info(self, system_obj, systems, output=''):
+        number_of_blocks = 2
+        id_list = [uuid.uuid4().hex for _ in range(number_of_blocks)]
+
+        position = lambda x_off, y_off: (x_off, y_off)
+
+        info = {
+            'type': 'series',
+            'label': system_obj.block_name,
+            'rel_position': position,
+            'x_offset': 0,
+            'y_offset': 0,
+            'in_direction': 'right', 
+            'out_direction': 'right',
+            'connect_to': [],
+            'connect_from': [],
+            'nodes': dict(), 
+            'output': output,
+            'renderer': self
+        }
+        nodes_dict = info['nodes']
+
+        # Add system nodes
+        for i, system in enumerate(systems):
+            sys_renderer_info = system.renderer.renderer_info
+            system_id = list(sys_renderer_info.keys())[0]
+            # i has no pointer, therefore declared as a default parameter
+            if 'nodes' in system.renderer.renderer_info[system_id]:
+                position = lambda x_off, y_off, widths, unit_block_space=0.5, i=i: (x_off + i * unit_block_space + sum(widths[:i]), y_off)
+            else:
+                position = lambda x_off, y_off, widths, unit_block_space=0.5, i=i: (x_off + widths[i] / 2 + i * unit_block_space + sum(widths[:i]), y_off)
+            connect_to = []
+            connect_from = []
+            if i < len(systems) - 1:
+                connect_to.append(id_list[i + 1])
+            if i > 0:
+                connect_from.append(id_list[i - 1])
+                
+            new_renderer_info = update_renderer_info(
+                system.renderer.renderer_info,
+                id_list[i],
+                rel_position=position,
+                connect_to=connect_to, 
+                connect_from=connect_from)
+            nodes_dict.update(new_renderer_info)
+
+        return info
+
+    def get_position_function_arguments(self, parent_offsets, renderer_info=None, unit_block_space=0.5):
+        if renderer_info is None:
+            renderer_info = self.renderer_info
+        widths, heights = self.get_dimensions(renderer_info=renderer_info)
+        return parent_offsets[0], parent_offsets[1], widths, unit_block_space
 
     def calculate_dimension(self, renderer_info=None, unit_block_space=0.5):
         # Get width and heights from each subsystem in the series block scheme. The order in the vectors is left_system, right_system.
-        pass
+        if renderer_info is None:
+            renderer_info = self.renderer_info
+
+        # Get all widths and heights of children nodes
+        widths, heights = self.get_dimensions(renderer_info=renderer_info)
+
+        # Estimate width and height of parent node
+        width = widths[0] + unit_block_space + widths[1]
+        height = max(heights)
+        return width, height
         
         

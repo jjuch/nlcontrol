@@ -1,5 +1,5 @@
 import nlcontrol.signals as sgnls
-from nlcontrol.visualisation import SystemRenderer, ParallelRenderer
+from nlcontrol.visualisation import SystemRenderer, ParallelRenderer, SeriesRenderer
 
 from copy import deepcopy, copy
 import warnings
