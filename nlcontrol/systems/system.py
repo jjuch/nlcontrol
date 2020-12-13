@@ -677,4 +677,10 @@ class SystemBase():
                 return lambdify_with_vector_args(self.system.input, self.system.output_equation)
             else:
                 error_text = '[system.__get_output_equation__] The datatype DynamicalSystem is expected and not DynamicalSystem2.'
-                raise TypeError(error_text)        
+                raise TypeError(error_text)
+
+
+class TransferFunction(SystemBase):
+    def __init__(self, *args):
+        sys = control.tf2ss(*args)
+        print(sys)
