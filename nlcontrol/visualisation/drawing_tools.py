@@ -385,22 +385,23 @@ def generate_connection_coordinates(renderer_info):
     y_polynomials = []
     output = []
 
+    print("======== renderer info: ")
+    pretty_print_dict(renderer_info)
     new_renderer_info = flatten_nodes(renderer_info)
-    # print("===== renderer info")
+    # print("===== flattend renderer info")
     # pretty_print_dict(new_renderer_info)
     
     for node in new_renderer_info:
         cs = new_renderer_info[node]
         polyn_x_coords = []
         polyn_y_coords = []
-        # print("===== cs:")
-        # pretty_print_dict(cs)
         if 'diameter' in cs:
             width = cs['diameter']
         else:
             width = abs(cs['out_pos'][0] - cs['in_pos'][0])
-        # Add an arrow to an empty input node without children
-        if (len(cs['connect_from']) == 0) and ('nodes' not in cs):
+        # Add an arrow to an empty input node without children 
+        # TODO: This is a quick fix to avoid double input arrows.
+        if (len(cs['connect_from']) == 0) and ('nodes' not in cs) and (cs['depth'] == 0 or cs['depth'] == 1):
             # End coordinate
             polyn_x_coords.append(cs['in_pos'][0])
             polyn_y_coords.append(cs['in_pos'][1])

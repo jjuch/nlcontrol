@@ -11,6 +11,7 @@ def flatten_nodes(dict_data: dict, recursion_depth=0):
     dict_data_copy = copy.copy(dict_data)
     for node in dict_data_copy:
         cs = copy.copy(dict_data_copy[node])
+        cs['depth'] = recursion_depth
         if 'nodes' in cs:
             cs_nodes = copy.copy(cs['nodes'])
             cs['nodes'] = dict()
