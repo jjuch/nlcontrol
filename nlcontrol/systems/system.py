@@ -18,7 +18,9 @@ from simupy.systems import DynamicalSystem as DynamicalSystem2
 
 import numpy as np
 import matplotlib.pyplot as plt
-import control
+from control import tf2ss, StateSpace, ss
+from control import TransferFunction as TF
+
 
 DEFAULT_INTEGRATOR_OPTIONS = {
     'name': 'dopri5',
@@ -228,7 +230,7 @@ class SystemBase(object):
             else:
                 return Array([diff(st, Symbol('t'), level) for st in arg])
         else:
-            if (',' in arg):
+            if (',' in arg) or (':' in arg):
                 return Array(dynamicsymbols(arg, level))
             else:
                 return Array([dynamicsymbols(arg, level)])
@@ -375,7 +377,7 @@ class SystemBase(object):
             return np.array(A), np.array(B), np.array(C), np.array(D)
 
         A, B, C, D = get_state_space_matrices(state_equation_linearized, output_equation_linearized)
-        sys_control = control.ss(A, B, C, D)
+        sys_control = ss(A, B, C, D)
         return system, sys_control
 
 
@@ -712,3 +714,94 @@ class SystemBase(object):
     
     def show(self, **kwargs):
         self.renderer.show(**kwargs)
+
+class TransferFunction(SystemBase):
+    """
+    TransferFunction(num, den, states=None, inputs=None, name="Tf fct")
+    TransferFunction(tf, states=None, inputs=None, name="Tf fct")
+
+    A class that allows the integration of linear transfer functions, defined in Laplace domain, into the nlcontrol module, as an extension to the SystemBase class. For more info, check Python's control toolbox' documentation.
+
+    Parameters
+    ----------
+    num : list or list of lists
+        The coefficients of the numerator of the transfer functions.
+    den : list or list of lists
+        The coefficients of the denominator of the transfer functions.
+    tf : control's TransferFunction
+        The transfer function that describes the system's dynamics. The system can be a MIMO system.
+    states : string or array-like
+        If `states` is a string, it is a comma-separated listing of the state names. If `states` is array-like it contains the states as sympy's dynamic symbols. The default is [st0, st1, ...].
+    inputs : string or array-like
+        If `inputs` is a string, it is a comma-separated listing of the input names. If `inputs` is array-like it contains the inputs as sympy's dynamic symbols. The default is [inp0, inp1, ...].
+    name : string
+        Give the system a custom name which will be shown in the block scheme, default: 'Tf fct'.
+
+
+    Properties
+    ----------
+    transfer function : tf
+        The transfer function as a control toolbox object.
+
+    Examples
+    --------
+    \\TODO
+     
+    """
+    def __init__(self, *args, **kwargs):
+        sys = tf2ss(*args)
+        self.tf = None
+        if len(args) == 2:
+            self.tf = TF(*args)
+        elif len(args) == 1 and isinstance(args[0], TF):
+            self.tf = args[0]
+
+        states = None
+        if 'states' in kwargs:
+            states = kwargs['states']
+        else:
+            number_of_states = sys.A.shape[0]
+            states = 'st0:{}'.format(number_of_states)
+        if 'inputs' in kwargs:
+            inputs = kwargs['inputs']
+        else:
+            number_of_inputs = sys.B.shape[1]
+            inputs = 'inp0:{}'.format(number_of_inputs)
+        
+        if "name" not in kwargs:
+            kwargs['name'] = "Tf fct"
+
+        super().__init__(states, inputs)
+        self.__create_system__(sys)
+
+
+    def __str__(self):
+        return """
+        TransferFunction object:
+        ========================
+        {}
+        """.format(self.tf)
+
+
+    def __create_system__(self, state_space: StateSpace):
+        state_equation = Matrix(state_space.A) * Matrix(self.states)\
+            + Matrix(state_space.B) * Matrix(self.inputs)
+        output_equation = Matrix(state_space.C) * Matrix(self.states)\
+            + Matrix(state_space.D) * Matrix(self.inputs)
+        self.system = DynamicalSystem(
+            state_equation=state_equation,
+            output_equation=output_equation,
+            state=self.states, 
+            input_=self.inputs)
+
+    def linearize(self, *args, **kwargs):
+        """
+        Overloading SystemBase's linearize, as these systems are already linear.
+
+        Returns
+        --------
+        sys_lin: SystemBase object 
+            with the same states and inputs as the original system. The state and output equation is linearized.
+        sys_control: control.StateSpace object
+        """
+        return self, tf2ss(self.tf)
