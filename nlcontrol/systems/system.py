@@ -1,5 +1,5 @@
 import nlcontrol.signals as sgnls
-from nlcontrol.visualisation import SystemRenderer, ParallelRenderer, SeriesRenderer, SignalRenderer
+from nlcontrol.visualisation import SystemRenderer, ParallelRenderer, SeriesRenderer, SignalRenderer, ClosedLoopRenderer
 
 from copy import deepcopy, copy
 import warnings
@@ -20,6 +20,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from control import tf2ss, StateSpace, ss
 from control import TransferFunction as TF
+
+__all__ = ["SystemBase", "TransferFunction"]
 
 
 DEFAULT_INTEGRATOR_OPTIONS = {
@@ -105,6 +107,8 @@ class SystemBase(object):
             self.renderer = SeriesRenderer(self, **kwargs)
         elif kwargs['block_type'] == 'signal':
             self.renderer = SignalRenderer(self, **kwargs)
+        elif kwargs['block_type'] == 'closedloop':
+            self.renderer = ClosedLoopRenderer(self, ***kwargs)
         
 
 
@@ -409,7 +413,6 @@ class SystemBase(object):
         if (self.sys.dim_output != sys_append.sys.dim_input):
             error_text = '[SystemBase.series] Dimension of output of the first system is not equal to dimension of input of the second system.'
             raise ValueError(error_text)
-            # raise SystemExit(error_text), None, sys.exc_info()[2]
         else:
             inputs = self.inputs
             substitutions = dict(zip(sys_append.sys.input, self.sys.output_equation))

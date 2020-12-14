@@ -6,12 +6,15 @@ from sympy.tensor.array import Array
 
 from nlcontrol.closedloop.blocks import gain_block
 from nlcontrol.systems import SystemBase, ControllerBase
+from nlcontrol.visualisation import ClosedLoopRenderer
 
 import numpy as np
 import matplotlib.pyplot as plt
 
+__all__ = ["ClosedLoop"]
 
-class ClosedLoop():
+
+class ClosedLoop(object):
     """
     ClosedLoop(system=None, controller=None)
 
@@ -101,6 +104,7 @@ class ClosedLoop():
             raise TypeError(error_text)
         self.block_diagram, self.indices = self.create_block_diagram()
         self.closed_loop_system = self.create_closed_loop_system()
+        self.renderer = ClosedLoopRenderer(self, **kwargs)
     
     @property
     def forward_system(self):
@@ -153,7 +157,61 @@ class ClosedLoop():
         '''
         states, state_equations = self.__get_states__()
         system_dyn = DynamicalSystem(state_equation=Array(state_equations), state=states, output_equation=self.system.output_equation)
-        return SystemBase(states=Array(states), inputs='r', sys=system_dyn)
+        input_dim = self.backward_system.system.dim_output
+        return SystemBase(states=Array(states), inputs='r0:{}'.format(input_dim), sys=system_dyn, name="closed-loop", block_type='closedloop')
+
+    def series(self, sys_append):
+        """
+        A system is generated which is the result of a serial connection of two systems. The outputs of this object are connected to the inputs of the appended system and a new system is achieved which has the inputs of the current system and the outputs of the appended system. Notice that the dimensions of the output of the current system should be equal to the dimension of the input of the appended system.
+
+        Parameters
+        -----------
+        sys_append : SystemBase object
+            the system that is placed in a serial configuration. 'sys_append' follows the current system.
+
+        Returns
+        --------
+        A SystemBase object with the serial system's equations.
+
+        Examples
+        ---------
+        \\ TODO
+        """
+        closed_loop = self.create_closed_loop_system()
+        if (closed_loop.system.dim_output != sys_append.system.dim_input):
+            error_text = '[ClosedLoop.series] Dimension of output of the closed-loop system is not equal to dimension of input of the appended system.'
+            raise ValueError(error_text)
+        else:
+            return closed_loop.series(sys_append)
+
+
+    def parallel(self, sys_append):
+        """
+        A system is generated which is the result of a parallel connection of two systems. The inputs of this object are connected to the system that is placed in parallel and a new system is achieved with the output the sum of the outputs of both systems in parallel. Notice that the dimensions of the inputs and the outputs of both systems should be equal.
+
+        Parameters
+        -----------
+        sys_append : SystemBase object
+            the system that is added in parallel.
+
+        Returns
+        --------
+        A SystemBase object with the parallel system's equations.
+
+        Examples
+        ---------
+        \\TODO
+        """
+        closed_loop = self.create_closed_loop_system()
+        if (closed_loop.system.dim_input != sys_append.system.dim_input):
+            error_text = '[ClosedLoop.parallel] Dimension of the input of the closed-loop system is not equal to the dimension of the input of the appended system.'
+            raise ValueError(error_text)
+        elif (closed_loop.system.dim_output != sys_append.system.dim_output):
+            error_text = '[ClosedLoop.parallel] Dimension of the output of the closed-loop system is not equal to the dimension of the output of the appended system.'
+            raise ValueError(error_text)
+        else:
+            return closed_loop.parallel(sys_append)
+
 
 
     def __get_states__(self):

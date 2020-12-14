@@ -9,6 +9,8 @@ from bokeh.models import (Arrow, ColumnDataSource, Ellipse, HoverTool, MultiLine
 
 import uuid
 
+__all__ = ["RendererBase", "SystemRenderer", "ParallelRenderer", "SignalRenderer", "ClosedLoopRenderer"]
+
 FONT_SIZE_IN_PIXELS = 15
 x_offset, y_offset = 0, 0
 
@@ -381,3 +383,5 @@ class SignalRenderer(SystemRenderer):
             connect_to=connect_to)
         
         
+class ClosedLoopRenderer(RendererBase):
+    pass

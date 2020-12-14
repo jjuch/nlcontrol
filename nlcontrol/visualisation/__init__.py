@@ -11,6 +11,7 @@ Classes:
         ParallelRenderer : visual renderer for parallel block schemes
         SeriesRenderer : visual renderer for Series block schemes
         SignalRenderer : visual renderer for a signal block
+        ClosedLoopRenderer : visual renderer for a closed-loop block_scheme
 
 Functions:
     * file_management : 
@@ -26,7 +27,7 @@ Functions:
 
 """
 
-from .base import RendererBase, SystemRenderer, ParallelRenderer, SeriesRenderer, SignalRenderer
+from .base import RendererBase, SystemRenderer, ParallelRenderer, SeriesRenderer, SignalRenderer, ClosedLoopRenderer
 from .file_management import __clean_temp_folder__, __write_to_browser__
 from .drawing_tools import draw_line, generate_renderer_sources
 from .utils import pretty_print_dict

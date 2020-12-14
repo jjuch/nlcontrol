@@ -2,6 +2,8 @@ import nlcontrol.systems as nlSystems
 import numpy as np
 from simupy.systems import DynamicalSystem, SystemFromCallable
 
+__all__ = ["append", "add"]
+
 def append(*signals):
     """
     Append a N_i-channel signals to a sum(N_i, i)-channel signal. Add as many signals as needed. The order of appearance determines the index of the output.

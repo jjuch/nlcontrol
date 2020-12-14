@@ -7,6 +7,8 @@ from sympy import Symbol
 
 import numpy as np
 
+__all__ = ["step", "sinusoid", "impulse", "empty_signal"]
+
 def step(dim=None, step_times=None, begin_values=None, end_values=None):
     """
     Creates a BaseSystem class object with a step signal. The signal can consist of multiple channels. This makes it possible to connect the step system to a system with multiple inputs. Without any arguments a one-channel unity step at time instance 0 is returned. By adding a dimension (int) N an N-channel unity step at time instance 0 is returned. The keyword arguments allow the creation of more customization: step_times defines the time the step starts (in seconds), begin_values defines the start values, and end_values defines the stop values. These three keyword arguments need to have the same dimension and are defined as lists or as an int. Each keyword is optional and left blank defaults to its unity step value.

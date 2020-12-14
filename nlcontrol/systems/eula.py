@@ -9,6 +9,8 @@ from nlcontrol.systems import SystemBase
 
 from itertools import chain
 
+__all__ = ["EulerLagrange"]
+
 class EulerLagrange(SystemBase):
     """
     EulerLagrange(states, inputs, sys=None, name="EL system")

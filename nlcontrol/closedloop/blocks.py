@@ -2,6 +2,8 @@ from simupy.systems.symbolic import MemorylessSystem
 from sympy.physics.mechanics import dynamicsymbols
 from sympy.tensor.array import Array
 
+__all__ = ["gain_block"]
+
 def gain_block(value, dim):
     """
     Multiply the output of system with dimension 'dim' with a contant value 'K'.

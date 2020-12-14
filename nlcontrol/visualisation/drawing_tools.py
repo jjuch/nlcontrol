@@ -11,7 +11,7 @@ UNIT_CHARACTER_LENGTH = 0.03
 UNIT_CHARACTER_HEIGHT = 0.1
 UNIT_BLOCK_SPACE = 0.5
 
-
+__all__ = ["draw_line", "generate_summation_renderer_info", "generate_common_node_renderer_info", "update_renderer_info", "generate_relative_positions", "eval_position_functions", "generate_renderer_sources", "generate_connection_coordinates"]
 
 def draw_line(coord1, coord2, forbidden_direction=None, recursion_depth=0):
     print(recursion_depth, ": ", coord1, " -> ", coord2, " - ", forbidden_direction)
@@ -385,8 +385,8 @@ def generate_connection_coordinates(renderer_info):
     y_polynomials = []
     output = []
 
-    print("======== renderer info: ")
-    pretty_print_dict(renderer_info)
+    # print("======== renderer info: ")
+    # pretty_print_dict(renderer_info)
     new_renderer_info = flatten_nodes(renderer_info)
     # print("===== flattend renderer info")
     # pretty_print_dict(new_renderer_info)
