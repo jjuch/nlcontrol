@@ -208,7 +208,7 @@ class ParallelRenderer(RendererBase):
 
     def __init_renderer_info__(self, block_type="parallel", **kwargs):
         if 'systems' not in kwargs:
-            error_text = "[RendererBase] In the case of a 'parallel' block_type a keyword argument 'systems' should be supplied."
+            error_text = "[visualisation.RendererBase] In the case of a 'parallel' block_type a key 'systems' should be supplied."
             raise AttributeError(error_text)
         return super().__init_renderer_info__(self.generate_parallel_renderer_info, **kwargs)
 
@@ -384,4 +384,79 @@ class SignalRenderer(SystemRenderer):
         
         
 class ClosedLoopRenderer(RendererBase):
-    pass
+    def __init__(self, system_obj, **kwargs):
+        super().__init__(system_obj)
+        self.renderer_info = self.__init_renderer_info__(**kwargs)
+
+    def __init_renderer_info__(self, block_type="closedloop", **kwargs):
+        if 'forward_sys' not in kwargs:
+            error_text = "[visualisation.RendererBase] In the case of a 'closedloop' block_type a key 'forward_sys' should be supplied." 
+            raise AttributeError(error_text)
+        if 'backward_sys' not in kwargs:
+            kwargs['backward_sys'] = None
+        
+        return super().__init_renderer_info__(self.generate_closed_loop_renderer_info, **kwargs)
+
+    def generate_closed_loop_renderer_info(self, system_obj, forward_sys, backward_sys, output=''):
+        number_of_blocks = 4
+        id_list = [uuid.uuid4().hex for _ in range(number_of_blocks)]
+
+        position = lambda x_off, y_off: (x_off, y_off)
+
+        info = {
+            'type': 'closedloop',
+            'label': system_obj.block_name,
+            'rel_position': position,
+            'x_offset': 0,
+            'y_offset': 0,
+            'in_direction': 'right',
+            'out_direction': 'right',
+            'connect_to': []
+            'connect_from': []
+            'nodes': dict(),
+            'output': output,
+            'renderer': self
+        }
+        nodes_dict = info['nodes']
+
+        # Add forward system node
+        fwd_sys_renderer_info = forward_sys.renderer.renderer_info
+        fwd_system_id = list(fwd_sys_renderer_info.keys())[0]
+
+        if 'nodes' in forward_sys.renderer.renderer_info[fwd_system_id]:
+            fwd_position = lambda x_off, y_off, widths, heights, unit_block_space=0.5, i=i: (widths[2] / 2 + unit_block_space + x_off, y_off)
+        else:
+            fwd_position = lambda x_off, y_off, widths, heights, unit_block_space=0.5, i=i: widths[2] / 2 + unit_block_space + widths[0] / 2, y_off)
+        new_fwd_renderer_info = update_renderer_info(
+            forward_sys.renderer.renderer_info,
+            id_list[0],
+            rel_position=fwd_position,
+            connect_to=[id_list[3]]
+            connect_from=[id_list[2]],
+            renderer=forward_sys.renderer
+        )
+
+        # Add backward system node
+        if backward_sys is not None:
+            bwd_sys_renderer_info = backward_sys.renderer.renderer_info
+            bwd_system_id = list(bwd_sys_renderer_info.keys())[0]
+
+
+            if 'nodes' in backward_sys.renderer.renderer_info[fwd_system_id]:
+                bwd_position = lambda x_off, y_off, widths, heights, unit_block_space=0.5, i=i: None #TODO
+            else:
+                bwd_position = lambda x_off, y_off, widths, heights, unit_block_space=0.5, i=i: None #TODO
+            new_bwd_renderer_info = update_renderer_info(
+                backward_sys.renderer.renderer_info,
+                id_list[0],
+                rel_position=bwd_position,
+                connect_to=[id_list[2]]
+                connect_from=[id_list[3]],
+                renderer=backward_sys.renderer
+            )
+        else:
+            pass # TODO: what if there is no backward node
+
+
+
+        
