@@ -10,6 +10,7 @@ Classes:
         SystemRenderer : visual renderer for System blocks
         ParallelRenderer : visual renderer for parallel block schemes
         SeriesRenderer : visual renderer for Series block schemes
+        SignalRenderer : visual renderer for a signal block
 
 Functions:
     * file_management : 
@@ -25,7 +26,7 @@ Functions:
 
 """
 
-from .base import RendererBase, SystemRenderer, ParallelRenderer, SeriesRenderer
+from .base import RendererBase, SystemRenderer, ParallelRenderer, SeriesRenderer, SignalRenderer
 from .file_management import __clean_temp_folder__, __write_to_browser__
 from .drawing_tools import draw_line, generate_renderer_sources
 from .utils import pretty_print_dict

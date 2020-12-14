@@ -1,5 +1,5 @@
 import nlcontrol.signals as sgnls
-from nlcontrol.visualisation import SystemRenderer, ParallelRenderer, SeriesRenderer
+from nlcontrol.visualisation import SystemRenderer, ParallelRenderer, SeriesRenderer, SignalRenderer
 
 from copy import deepcopy, copy
 import warnings
@@ -103,6 +103,8 @@ class SystemBase(object):
             self.renderer = ParallelRenderer(self, **kwargs)
         elif kwargs['block_type'] == 'series':
             self.renderer = SeriesRenderer(self, **kwargs)
+        elif kwargs['block_type'] == 'signal':
+            self.renderer = SignalRenderer(self, **kwargs)
         
 
 

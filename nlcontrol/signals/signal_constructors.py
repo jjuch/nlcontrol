@@ -84,7 +84,7 @@ def step(dim=None, step_times=None, begin_values=None, end_values=None):
         return values
 
     system = SystemFromCallable(callable, 0, dim)
-    return nlSystems.SystemBase(states=None, inputs=None, sys=system)
+    return nlSystems.SystemBase(states=None, inputs=None, sys=system, name="step", block_type='signal')
 
 
 def sinusoid(dim=None, amplitude=None, frequency=None, phase_shift=None, y_shift=None):
@@ -168,7 +168,7 @@ def sinusoid(dim=None, amplitude=None, frequency=None, phase_shift=None, y_shift
         return np.array([A * np.sin(2*np.pi*f*t + phi) + y for A, f, phi, y in zip(amplitude, frequency, phase_shift, y_shift)])
     
     system = SystemFromCallable(callable, 0, dim)
-    return nlSystems.SystemBase(states=None, inputs=None, sys=system)
+    return nlSystems.SystemBase(states=None, inputs=None, sys=system, name="sinusoid", block_type='signal')
 
 
 def impulse(dim=None, amplitude=None, impulse_time=None, eps=10**(-2)):
@@ -251,7 +251,7 @@ def impulse(dim=None, amplitude=None, impulse_time=None, eps=10**(-2)):
     
     
     system = SystemFromCallable(callable, 0, dim)
-    return nlSystems.SystemBase(states=None, inputs=None, sys=system)
+    return nlSystems.SystemBase(states=None, inputs=None, sys=system, name="impulse", block_type='signal')
 
 
 def empty_signal(dim):

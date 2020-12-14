@@ -158,9 +158,12 @@ class SystemRenderer(RendererBase):
     def generate_system_renderer_info(self, system_obj, position=None, connect_from=[], connect_to=[]):
         if position is None:
             position = lambda x_off, y_off, width: (x_off + width / 2, y_off)
-        separator = ", "
-        states_str = separator.join(\
-            [str(state) for state in system_obj.states])
+        if system_obj.states is None:
+            states_str = ''
+        else:
+            separator = ", "
+            states_str = separator.join(\
+                [str(state) for state in system_obj.states])
         info = {
             'type': 'system',
             'label': system_obj.block_name,
@@ -363,5 +366,18 @@ class SeriesRenderer(RendererBase):
         width = widths[0] + unit_block_space + widths[1]
         height = max(heights)
         return width, height
+
+
+class SignalRenderer(SystemRenderer):
+    # def __init__(self, system_obj, **kwargs):
+    #     super().__init__(system_obj, **kwargs)
+    #     self.renderer_info = self.__init_renderer_info__(self, **kwargs)
+
+    def generate_system_renderer_info(self, system_obj, position=None, connect_from=[None], connect_to=[]):
+        return super().generate_system_renderer_info(
+            system_obj, 
+            position=position,
+            connect_from=connect_from,
+            connect_to=connect_to)
         
         
