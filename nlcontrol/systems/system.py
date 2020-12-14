@@ -718,7 +718,7 @@ class TransferFunction(SystemBase):
         self.tf = None
         if len(args) == 2:
             self.tf = TF(*args)
-        elif len(args) == 1 and isinstance(args[0], TransferFunction):
+        elif len(args) == 1 and isinstance(args[0], TF):
             self.tf = args[0]
 
         states = None
