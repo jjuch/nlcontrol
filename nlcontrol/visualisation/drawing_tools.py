@@ -13,8 +13,9 @@ UNIT_BLOCK_SPACE = 0.5
 
 __all__ = ["draw_line", "generate_summation_renderer_info", "generate_common_node_renderer_info", "update_renderer_info", "generate_relative_positions", "eval_position_functions", "generate_renderer_sources", "generate_connection_coordinates"]
 
-def draw_line(coord1, coord2, forbidden_direction=None, recursion_depth=0):
-    print(recursion_depth, ": ", coord1, " -> ", coord2, " - ", forbidden_direction)
+def draw_line(coord1, coord2, forbidden_direction=None, recursion_depth=0, verbose=False):
+    if verbose:
+        print(recursion_depth, ": ", coord1, " -> ", coord2, " - ", forbidden_direction)
     # Initialize
     coordinate_list = []
     if recursion_depth == 0:
@@ -134,8 +135,6 @@ def generate_summation_renderer_info(label='+', position=None, in_direction=['do
         'type': 'summation',
         'label': label,
         'rel_position': position,
-        # 'x_offset': 0,
-        # 'y_offset': 0,
         'in_direction': in_direction,
         'out_direction': out_direction,
         'connect_to': connect_to,
@@ -150,8 +149,6 @@ def generate_common_node_renderer_info(position=None, in_direction='right', out_
     info = {
         'type': 'common',
         'rel_position': position,
-        # 'x_offset': 0,
-        # 'y_offset': 0,
         'connect_to': connect_to,
         'connect_from': connect_from,
         'output': output,
@@ -172,8 +169,6 @@ def update_renderer_info(renderer_info, new_id, **kwargs):
 def generate_relative_positions(renderer_info, recursion_depth=0):
     for i, node in enumerate(renderer_info):
         cs = renderer_info[node]
-        # print("==== cs: ", recursion_depth)
-        # pretty_print_dict(cs)
         if cs['type'] == 'system':
             label_length = len(cs['label'])
             cs['width'] = UNIT_CHARACTER_LENGTH * (label_length + 2)
@@ -190,30 +185,20 @@ def generate_relative_positions(renderer_info, recursion_depth=0):
             generate_relative_positions(cs_nodes, recursion_depth=recursion_depth + 1)
             # # Set offsets for each child
             parent_renderer_info = {node: cs}
-            # widths, heights = cs['renderer'].get_dimensions(renderer_info=parent_renderer_info, unit_block_space=UNIT_BLOCK_SPACE)
-            # arguments = (cs['x_offset'], cs['y_offset'], widths, heights, UNIT_BLOCK_SPACE)
-            # eval_position_functions(cs_nodes, arguments)
             # Calculate the width and height of parent
             width, height = cs['renderer'].calculate_dimension(renderer_info=parent_renderer_info, unit_block_space=UNIT_BLOCK_SPACE)
             cs['width'] = width
             cs['height'] = height
-            # if recursion_depth == 0:
-            #     eval_position_functions(renderer_info, (0, 0))
 
 
 def eval_position_functions(nodes, arguments):
     for node_id in nodes:
         cn = nodes[node_id]
         position = cn['rel_position'](*arguments)
-        # print("==== old:")
-        # pretty_print_dict(cn)
-        # print("Position: ", position)
         if 'nodes' in cn:
             cn['x_offset'] = position[0]
             cn['y_offset'] = position[1]
         cn['position'] = position
-        # print("==== new:")
-        # pretty_print_dict(cn)
             
 
 def generate_renderer_sources(renderer_info, recursion_depth=0):
@@ -279,9 +264,9 @@ def generate_renderer_sources(renderer_info, recursion_depth=0):
                 elif direc == 'down':
                     in_coord_temp = (x_sum[-1], y_sum[-1] + diameter[-1] / 2)
                 elif direc == 'left':
-                    in_coord_temp = (x_sum[-1] - diameter[-1] / 2, y_sum[-1])
-                elif direc == 'right':
                     in_coord_temp = (x_sum[-1] + diameter[-1] / 2, y_sum[-1])
+                elif direc == 'right':
+                    in_coord_temp = (x_sum[-1] - diameter[-1] / 2, y_sum[-1])
                 else:
                     error_text = "[Visualisation.drawing_tools] The directions can only be defined by the strings 'up', 'down', 'left', and 'right'."
                     raise ValueError(error_text)
@@ -289,9 +274,9 @@ def generate_renderer_sources(renderer_info, recursion_depth=0):
             cs['in_pos'] = in_coord
             # Get output coordinate
             if cs['out_direction'] == 'up':
-                cs['out_pos'] = (x_sum[-1], y_sum[-1] - diameter[-1] / 2)
-            elif cs['out_direction'] == 'down':
                 cs['out_pos'] = (x_sum[-1], y_sum[-1] + diameter[-1] / 2)
+            elif cs['out_direction'] == 'down':
+                cs['out_pos'] = (x_sum[-1], y_sum[-1] - diameter[-1] / 2)
             elif cs['out_direction'] == 'left':
                 cs['out_pos'] = (x_sum[-1] - diameter[-1] / 2, y_sum[-1])
             elif cs['out_direction'] == 'right':
@@ -305,9 +290,9 @@ def generate_renderer_sources(renderer_info, recursion_depth=0):
             width_comm.append(cs['diameter'])
             # Set input and output coordinates
             if cs['in_direction'] == 'up':
-                in_coord = (x_comm[-1], y_comm[-1] + width_comm[-1] / 2)
-            elif cs['in_direction'] == 'down':
                 in_coord = (x_comm[-1], y_comm[-1] - width_comm[-1] / 2)
+            elif cs['in_direction'] == 'down':
+                in_coord = (x_comm[-1], y_comm[-1] + width_comm[-1] / 2)
             elif cs['in_direction'] == 'left':
                 in_coord = (x_comm[-1] + width_comm[-1] / 2, y_comm[-1])
             elif cs['in_direction'] == 'right':
@@ -316,7 +301,22 @@ def generate_renderer_sources(renderer_info, recursion_depth=0):
                 error_text = "[Visualisation.drawing_tools] The directions can only be defined by the strings 'up', 'down', 'left', and 'right'."
                 raise ValueError(error_text)
             cs['in_pos'] = in_coord
-            cs['out_pos'] = cs['position']
+            # Get output coordinate
+            out_coord = []
+            for direc in cs['out_direction']:
+                if direc == 'up':
+                    out_coord_temp = (x_comm[-1], y_comm[-1] + width_comm[-1] / 2)
+                elif direc == 'down':
+                    out_coord_temp = (x_comm[-1], y_comm[-1] - width_comm[-1] / 2)
+                elif direc == 'left':
+                    out_coord_temp = (x_comm[-1] - width_comm[-1] / 2, y_comm[-1])
+                elif direc == 'right':
+                    out_coord_temp = (x_comm[-1] + width_comm[-1] / 2, y_comm[-1])
+                else:
+                    error_text = "[Visualisation.drawing_tools] The directions can only be defined by the strings 'up', 'down', 'left', and 'right'."
+                    raise ValueError(error_text)
+                out_coord.append(out_coord_temp)
+            cs['out_pos'] = out_coord
         elif 'nodes' in cs:
             cs_nodes = cs['nodes']
             parent_renderer_info = {node: cs}
@@ -369,9 +369,7 @@ def generate_renderer_sources(renderer_info, recursion_depth=0):
                     if cs_nodes[cl_node]['type'] == 'common':
                         cs['out_pos'] = cs_nodes[cl_node]['position']
                     elif cs_nodes[cl_node]['type'] == 'summation':
-                        cs['in_pos'] = cs_nodes[cl_node]['in_pos'][1]
-
-            
+                        cs['in_pos'] = cs_nodes[cl_node]['in_pos'][1]     
 
     if recursion_depth == 0:
         source_systems = ColumnDataSource(dict(x=x_sys, y=y_sys, text=text_sys, width=width_sys, height=height_sys, classname=classname, states=states, output=output_sys))
@@ -386,16 +384,56 @@ def generate_renderer_sources(renderer_info, recursion_depth=0):
         return sys_dict, sum_dict, comm_dict
 
 
+def __find_closest_coordinate__(start_coords, stop_coords):
+    def distance(coord1, coord2):
+        return np.sqrt((coord2[0] - coord1[0]) ** 2 + (coord2[1] - coord1[1]) ** 2)
+
+    best_distance = 1e5
+    coord_start = None
+    coord_stop = None
+    index_start = None
+    index_stop = None
+
+    if type(start_coords) == list:
+        for i, start_coord in enumerate(start_coords):
+            if type(stop_coords) == list:
+                for j, stop_coord in enumerate(stop_coords):
+                    new_distance = distance(start_coord, stop_coord)
+                    if new_distance < best_distance:
+                        best_distance = new_distance
+                        coord_start = start_coord
+                        coord_stop = stop_coord
+                        index_start = i
+                        index_stop = j
+            else:
+                new_distance = distance(start_coord, stop_coords)
+                if new_distance < best_distance:
+                    best_distance = new_distance
+                    coord_start = start_coord
+                    coord_stop = stop_coords
+                    index_start = i
+    elif type(stop_coords) == list:
+        for j, stop_coord in enumerate(stop_coords):
+            new_distance = distance(start_coords, stop_coord)
+            if new_distance < best_distance:
+                best_distance = new_distance
+                coord_start = start_coords
+                coord_stop = stop_coord
+                index_stop = j
+    else:
+        coord_start = start_coords
+        coord_stop = stop_coords
+    return coord_start, coord_stop, index_start, index_stop               
+
+
+
 def generate_connection_coordinates(renderer_info):
     x_polynomials = []
     y_polynomials = []
     output = []
 
-    print("======== renderer info: ")
-    pretty_print_dict(renderer_info)
+    # Flatten renderer info and process all nodes
     new_renderer_info = flatten_nodes(renderer_info)
-    # print("===== flattend renderer info")
-    # pretty_print_dict(new_renderer_info)
     
     for node in new_renderer_info:
         cs = new_renderer_info[node]
@@ -443,34 +481,26 @@ def generate_connection_coordinates(renderer_info):
         else:
             for connection in cs['connect_to']:
                 end_block = new_renderer_info[connection]
+                # Handle multiple inputs and outputs based on euclidian distance.
+                coord_start, coord_stop, start_idx, stop_idx = __find_closest_coordinate__(cs['out_pos'], end_block['in_pos'])
+
                 # Set start coordinate
                 start_coord = []
-                start_coord.extend(cs['out_pos'])
-                if type(cs['out_direction']) == list:
-                    #TODO: FIX: should depend on direction of arrows
-                    if cs['position'][1] < end_block['position'][1]:
-                        start_coord.append(cs['out_direction'][0])
-                    else:
-                        start_coord.append(cs['out_direction'][1])
-                else:
+                start_coord.extend(coord_start)
+                if start_idx is None:
                     start_coord.append(cs['out_direction'])
+                else:
+                    start_coord.append(cs['out_direction'][start_idx])
+                    
                 # Get end coordinate - initialize
                 stop_coord = []
-                # If the end block has multiple inputs, select the correct one.
-                if type(end_block['in_direction']) == list:
-                    #TODO: FIX: should depend on direction of arrows
-                    if cs['position'][1] > end_block['position'][1]:
-                        stop_coord.extend(end_block['in_pos'][0])
-                        stop_coord.append(end_block['in_direction'][0])
-                    else:
-                        stop_coord.extend(end_block['in_pos'][1])
-                        stop_coord.append(end_block['in_direction'][1])
-                else:
-                    stop_coord.extend(end_block['in_pos'])
+                stop_coord.extend(coord_stop)
+                if stop_idx is None:
                     stop_coord.append(end_block['in_direction'])
+                else:
+                    stop_coord.append(end_block['in_direction'][stop_idx])
 
                 # Draw line between start en stop coordinate
-                print(start_coord, " - ", stop_coord)
                 line_coordinates = draw_line(start_coord, stop_coord)
                 # Format coordinate lists
                 for line_coord in line_coordinates:
@@ -485,14 +515,6 @@ def generate_connection_coordinates(renderer_info):
     return x_polynomials, y_polynomials, output
 
                 
-
-        
-
-
-
-            
-
-
 
 if __name__ == "__main__":
     #####################################

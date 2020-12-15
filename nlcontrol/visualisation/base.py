@@ -27,7 +27,6 @@ class RendererBase(object):
         info_id = info[unique_id]
         if 'block_type' in kwargs:
             block_type = kwargs['block_type']
-        print(block_type)
         info_dict = generate_renderer_info_function(self.system_obj, **kwargs)
         info_id.update(info_dict)
         return info
@@ -37,11 +36,8 @@ class RendererBase(object):
         if renderer_info is None:
             renderer_info = self.renderer_info
         try:
-            # print(list(renderer_info.keys()))
             uuid_parallel = list(renderer_info.keys())[0]
             parent = renderer_info[uuid_parallel]
-            # print("==== parent:")
-            # pretty_print_dict(parent)
             children_nodes = parent['nodes']
         except:
             error_text = "[Visualisation.RendererBase] Supply the single parent as renderer_info. No other nodes should be included."
@@ -50,8 +46,6 @@ class RendererBase(object):
         heights = []
         for child_id in children_nodes:
             child_node = children_nodes[child_id]
-            # print("======= width?")
-            # pretty_print_dict(child_node)
             if 'diameter' in child_node:
                 widths.append(child_node['diameter'])
                 heights.append(child_node['diameter'])
@@ -62,15 +56,8 @@ class RendererBase(object):
 
 
     def show(self, open_browser=True):
-        print("Showing the system {} with name '{}'".format(type(self.system_obj), self.system_obj.name))
         generate_relative_positions(self.renderer_info)
-        # print("===== renderer_info: ")
-        # pretty_print_dict(self.renderer_info)
-        
         source_systems, source_sum, source_commons = generate_renderer_sources(self.renderer_info)
-        # print("===== renderer_info: ")
-        # pretty_print_dict(self.renderer_info)
-
         x_polynomials, y_polynomials, output_lines = generate_connection_coordinates(self.renderer_info)
 
         glyph_system_text = Text(x="x", y="y", text="text", text_font_size="{}px".format(FONT_SIZE_IN_PIXELS), text_color="#000000", text_baseline="middle", text_align="center")
@@ -198,7 +185,6 @@ class SystemRenderer(RendererBase):
             current_data['position'] = current_data['rel_position'](current_data['x_offset'], current_data['y_offset'])
             if 'nodes' in current_data:
                 self.set_coordinates(current_element=current_data['nodes'])
-        # print(self.renderer_info)
 
 
 
@@ -399,7 +385,6 @@ class ClosedLoopRenderer(RendererBase):
         self.renderer_info = self.__init_renderer_info__(system_obj, **kwargs)
 
     def __init_renderer_info__(self, system_obj, block_type="closedloop", **kwargs):
-        print("kwargs: ", kwargs)
         if 'forward_sys' not in kwargs:
             error_text = "[visualisation.RendererBase] In the case of a 'closedloop' block_type a key 'forward_sys' should be supplied." 
             raise AttributeError(error_text)
@@ -499,10 +484,11 @@ class ClosedLoopRenderer(RendererBase):
             else [id_list[1]]
             
         summation_dict = generate_summation_renderer_info(
+            label='-1',
             position=position,
             connect_to=[id_list[0]],
             connect_from=connect_from,
-            in_direction=['down', 'right']
+            in_direction=['up', 'right']
         )
         new_dict = {id_list[2]: summation_dict}
         nodes_dict.update(new_dict)
@@ -536,7 +522,6 @@ class ClosedLoopRenderer(RendererBase):
             renderer_info = self.renderer_info
         # Get width and heights of children nodes
         widths, heights = self.get_dimensions(renderer_info=renderer_info)
-        print(widths, " - ", heights)
 
         # Estimate width and heigh of parent node
         width = widths[2] + unit_block_space + max(widths[0:2]) + unit_block_space + widths[3]
