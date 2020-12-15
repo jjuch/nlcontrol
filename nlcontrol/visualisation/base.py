@@ -1,6 +1,6 @@
 from nlcontrol.visualisation.file_management import __write_to_browser__
 from nlcontrol.visualisation.drawing_tools import draw_line, generate_relative_positions, generate_renderer_sources, generate_connection_coordinates, update_renderer_info, generate_summation_renderer_info, generate_common_node_renderer_info
-from nlcontrol.visualisation.utils import pretty_print_dict
+from nlcontrol.visualisation.utils import pretty_print_dict, flip_block
 
 from bokeh.io import show, output_file, curdoc
 from bokeh.resources import CDN
@@ -59,6 +59,7 @@ class RendererBase(object):
                 widths.append(child_node['width'])
                 heights.append(child_node['height'])
         return widths, heights
+
 
     def show(self, open_browser=True):
         print("Showing the system {} with name '{}'".format(type(self.system_obj), self.system_obj.name))
@@ -241,9 +242,15 @@ class ParallelRenderer(RendererBase):
             system_id = list(sys_renderer_info.keys())[0]
             # i has no pointer, therefore declared as a default parameter
             if 'nodes' in system.renderer.renderer_info[system_id]:
-                position = lambda x_off, y_off, widths, heights, unit_block_space=0.5, i=i: (unit_block_space + x_off, sign[i] * (unit_block_space + heights[i])/2 + y_off)
+                position = lambda x_off, y_off, widths, heights, unit_block_space=0.5, i=i: (
+                    unit_block_space + x_off, 
+                    sign[i] * (unit_block_space + heights[i])/2 + y_off
+                )
             else:
-                position = lambda x_off, y_off, widths, heights, unit_block_space=0.5, i=i: (unit_block_space + widths[i] / 2 + x_off, sign[i] * (unit_block_space + heights[i])/2 + y_off)
+                position = lambda x_off, y_off, widths, heights, unit_block_space=0.5, i=i: (
+                    unit_block_space + widths[i] / 2 + x_off, 
+                    sign[i] * (unit_block_space + heights[i])/2 + y_off
+                )
             new_renderer_info = update_renderer_info(
                 system.renderer.renderer_info,
                 id_list[i],
@@ -254,7 +261,10 @@ class ParallelRenderer(RendererBase):
             nodes_dict.update(new_renderer_info)
         
         # Add summation node
-        position = lambda x_off, y_off, widths, heights, unit_block_space=0.5: (2 * unit_block_space + max(widths[0:2]) + x_off, y_off)
+        position = lambda x_off, y_off, widths, heights, unit_block_space=0.5: (
+            2 * unit_block_space + max(widths[0:2]) + x_off,
+            y_off
+        )
         summation_dict = generate_summation_renderer_info(
             position=position, 
             connect_from=[id_list[0], id_list[1]])
@@ -386,18 +396,22 @@ class SignalRenderer(SystemRenderer):
 class ClosedLoopRenderer(RendererBase):
     def __init__(self, system_obj, **kwargs):
         super().__init__(system_obj)
-        self.renderer_info = self.__init_renderer_info__(**kwargs)
+        self.renderer_info = self.__init_renderer_info__(system_obj, **kwargs)
 
-    def __init_renderer_info__(self, block_type="closedloop", **kwargs):
+    def __init_renderer_info__(self, system_obj, block_type="closedloop", **kwargs):
+        print("kwargs: ", kwargs)
         if 'forward_sys' not in kwargs:
             error_text = "[visualisation.RendererBase] In the case of a 'closedloop' block_type a key 'forward_sys' should be supplied." 
             raise AttributeError(error_text)
         if 'backward_sys' not in kwargs:
-            kwargs['backward_sys'] = None
+            error_text = "[visualisation.RendererBase] In the case of a 'closedloop' block_type a key 'backward_sys' should be supplied." 
+            raise AttributeError(error_text)
+
         
         return super().__init_renderer_info__(self.generate_closed_loop_renderer_info, **kwargs)
 
-    def generate_closed_loop_renderer_info(self, system_obj, forward_sys, backward_sys, output=''):
+
+    def generate_closed_loop_renderer_info(self, system_obj, forward_sys=None, backward_sys=None, output=''):
         number_of_blocks = 4
         id_list = [uuid.uuid4().hex for _ in range(number_of_blocks)]
 
@@ -411,8 +425,8 @@ class ClosedLoopRenderer(RendererBase):
             'y_offset': 0,
             'in_direction': 'right',
             'out_direction': 'right',
-            'connect_to': []
-            'connect_from': []
+            'connect_to': [],
+            'connect_from': [],
             'nodes': dict(),
             'output': output,
             'renderer': self
@@ -424,39 +438,107 @@ class ClosedLoopRenderer(RendererBase):
         fwd_system_id = list(fwd_sys_renderer_info.keys())[0]
 
         if 'nodes' in forward_sys.renderer.renderer_info[fwd_system_id]:
-            fwd_position = lambda x_off, y_off, widths, heights, unit_block_space=0.5, i=i: (widths[2] / 2 + unit_block_space + x_off, y_off)
+            fwd_position = lambda x_off, y_off, widths, heights, unit_block_space=0.5: (
+                widths[2] / 2 + unit_block_space + x_off,
+                y_off
+            )
         else:
-            fwd_position = lambda x_off, y_off, widths, heights, unit_block_space=0.5, i=i: widths[2] / 2 + unit_block_space + widths[0] / 2, y_off)
+            fwd_position = lambda x_off, y_off, widths, heights, unit_block_space=0.5: (
+                widths[2] / 2 + unit_block_space + widths[0] / 2 + x_off,
+                y_off
+            )
         new_fwd_renderer_info = update_renderer_info(
             forward_sys.renderer.renderer_info,
             id_list[0],
             rel_position=fwd_position,
-            connect_to=[id_list[3]]
+            connect_to=[id_list[3]],
             connect_from=[id_list[2]],
             renderer=forward_sys.renderer
         )
+        nodes_dict.update(new_fwd_renderer_info)
 
         # Add backward system node
+        bwd_position = lambda x_off, y_off, widths, heights, unit_block_space=0.5: (
+            widths[2] / 2 + unit_block_space + widths[0] / 2 + x_off,
+            -heights[0] / 2 - unit_block_space - heights[1] / 2 + y_off
+        )
+        connect_to = [id_list[2]]
+        connect_from = [id_list[3]]
         if backward_sys is not None:
             bwd_sys_renderer_info = backward_sys.renderer.renderer_info
             bwd_system_id = list(bwd_sys_renderer_info.keys())[0]
 
-
-            if 'nodes' in backward_sys.renderer.renderer_info[fwd_system_id]:
-                bwd_position = lambda x_off, y_off, widths, heights, unit_block_space=0.5, i=i: None #TODO
-            else:
-                bwd_position = lambda x_off, y_off, widths, heights, unit_block_space=0.5, i=i: None #TODO
+            if 'nodes' in backward_sys.renderer.renderer_info[bwd_system_id]:
+                bwd_position = lambda x_off, y_off, widths, heights, unit_block_space=0.5: (
+                    widths[2] / 2 + unit_block_space + x_off,
+                    -heights[0] / 2 - unit_block_space - heights[1] / 2 + y_off
+                )
+            
             new_bwd_renderer_info = update_renderer_info(
-                backward_sys.renderer.renderer_info,
-                id_list[0],
+                flip_block(backward_sys.renderer.renderer_info),
+                id_list[1],
                 rel_position=bwd_position,
-                connect_to=[id_list[2]]
-                connect_from=[id_list[3]],
+                connect_to=connect_to,
+                connect_from=connect_from,
                 renderer=backward_sys.renderer
             )
         else:
-            pass # TODO: what if there is no backward node
+            new_bwd_renderer_info = generate_common_node_renderer_info(
+                in_direction='left',
+                out_direction='left',
+                position=bwd_position,
+                connect_to=connect_to,
+                connect_from=connect_from
+            )
 
+        nodes_dict.update(new_bwd_renderer_info)
 
+        # Add summation node (is origin)
+        position = lambda x_off, y_off, widths, heights, unit_block_space=0.5: (x_off, y_off)
+        connect_from = [id_list[3]] if backward_sys is None\
+            else [id_list[1]]
+            
+        summation_dict = generate_summation_renderer_info(
+            position=position,
+            connect_to=[id_list[0]],
+            connect_from=connect_from,
+            in_direction=['down', 'right']
+        )
+        new_dict = {id_list[2]: summation_dict}
+        nodes_dict.update(new_dict)
 
-        
+        # Add output node
+        position = lambda x_off, y_off, widths, heights, unit_block_space=0.5: (
+            widths[2] / 2 + 2 * unit_block_space + max(widths[0:2]) + x_off,
+            y_off
+        )
+        connect_to = [id_list[2]] if backward_sys is None\
+            else [id_list[1]]
+        output_node_dict = generate_common_node_renderer_info(
+            position=position,
+            connect_to=connect_to,
+            connect_from=[id_list[0]],
+            out_direction=['down', 'right']
+        )
+        new_dict = {id_list[3]: output_node_dict}
+        nodes_dict.update(new_dict)
+
+        return info
+
+    def get_position_function_arguments(self, parent_offsets, renderer_info=None, unit_block_space=0.5):
+        if renderer_info is None:
+            renderer_info = self.renderer_info
+        widths, heights = self.get_dimensions(renderer_info=renderer_info)
+        return parent_offsets[0], parent_offsets[1], widths, heights, unit_block_space
+
+    def calculate_dimension(self, renderer_info=None, unit_block_space=0.5):
+        if renderer_info is None:
+            renderer_info = self.renderer_info
+        # Get width and heights of children nodes
+        widths, heights = self.get_dimensions(renderer_info=renderer_info)
+        print(widths, " - ", heights)
+
+        # Estimate width and heigh of parent node
+        width = widths[2] + unit_block_space + max(widths[0:2]) + unit_block_space + widths[3]
+        height = heights[0] + unit_block_space + heights[1]
+        return width, height        

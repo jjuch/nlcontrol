@@ -99,7 +99,12 @@ class SystemBase(object):
         self.system = sys
         self.block_name = name
         self.renderer = None
+
+        # Attach the appropriate renderer to the system
         if ('block_type' not in kwargs) or (kwargs['block_type'] == 'system'):
+            self.renderer = SystemRenderer(self, **kwargs)
+        elif kwargs['block_type'] == 'controller':
+            # Currently no need for a separate renderer class for controllers. In the future this can be changed if necessary.
             self.renderer = SystemRenderer(self, **kwargs)
         elif kwargs['block_type'] == 'parallel':
             self.renderer = ParallelRenderer(self, **kwargs)
@@ -108,9 +113,8 @@ class SystemBase(object):
         elif kwargs['block_type'] == 'signal':
             self.renderer = SignalRenderer(self, **kwargs)
         elif kwargs['block_type'] == 'closedloop':
-            self.renderer = ClosedLoopRenderer(self, ***kwargs)
+            self.renderer = ClosedLoopRenderer(self, **kwargs)
         
-
 
     def __str__(self):
         if callable(self.output_equation):
@@ -187,7 +191,7 @@ class SystemBase(object):
     @property
     def block_configuration(self):
         """
-        Returns info on the systems: the dimension of the inputs, the states, and the output. This property is mainly intended for debugging.
+        Prints info on the systems: the dimension of the inputs, the states, and the output. This property is mainly intended for debugging.
         """
 
         sys = self.system

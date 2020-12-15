@@ -83,7 +83,7 @@ class ControllerBase(SystemBase):
             name = kwargs['name']
         else:
             name = "controller"
-        super().__init__(states, inputs, sys=sys, name=name)
+        super().__init__(states, inputs, sys=sys, name=name, block_type="controller")
         self.dinputs, self.iinputs = self.__create_inputs__()
 
     

@@ -22,12 +22,13 @@ Functions:
         generate_renderers_sources : from a renderer dict the bokeh sources are generated.
     * utils :
         pretty_print_dict : transforms a dict to a pretty formatted print version.
-
-
-
+        flatten_nodes : flatten a nested dict to a flat dict.
+        create_direction_vector : A string direction is converted to a tensor.
+        flip_directions : change the direction keys to flip around a vertical axis.
+        flip_block : flip the renderer_info around a vertical axis.
 """
 
 from .base import RendererBase, SystemRenderer, ParallelRenderer, SeriesRenderer, SignalRenderer, ClosedLoopRenderer
 from .file_management import __clean_temp_folder__, __write_to_browser__
 from .drawing_tools import draw_line, generate_renderer_sources
-from .utils import pretty_print_dict
+from .utils import pretty_print_dict, flatten_nodes, create_direction_vector, flip_directions, flip_block

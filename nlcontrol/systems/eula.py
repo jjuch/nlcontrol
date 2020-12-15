@@ -95,7 +95,7 @@ class EulerLagrange(SystemBase):
             kwargs['sys'] = None
         if 'name' not in kwargs:
             kwargs['name'] = "EL system"
-        super().__init__(extended_states, inputs, sys=sys, name=name, block_type='system', **kwargs)
+        super().__init__(extended_states, inputs, block_type='system', **kwargs)
         self._M = None
         self._C = None
         self._K = None

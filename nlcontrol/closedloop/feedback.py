@@ -16,7 +16,7 @@ __all__ = ["ClosedLoop"]
 
 class ClosedLoop(object):
     """
-    ClosedLoop(system=None, controller=None)
+    ClosedLoop(forward=None, backward=None)
 
     The object contains a closed loop configuration using BlockDiagram objects of the simupy module. The closed loop systems is given by the following block scheme:
 
@@ -27,20 +27,20 @@ class ClosedLoop(object):
         :textual:
 
                  u  +----------+    w
-        +---------->+  System  +------+---->
+        +---------->+  Forward +------+---->
         |           +----------+      |
         |                             |     
         | +----+   +--------------+   |
-        +-+ -1 +<--+  Controller  +<--+
+        +-+ -1 +<--+   Backward   +<--+
           +----+   +--------------+
     
 
     Parameters
     -----------
-    system : :class:`Systembase` or :obj:`list` of :class:`Systembase`
+    forward : :class:`Systembase` or :obj:`list` of :class:`Systembase`
         A state-full or state-less system. The number of inputs should be equal to the number of controller outputs.
-    controller : :obj:`ControllerBase` or :obj:`list` of :obj:`ControllerBase`
-        A state-full or state-less controller. The number of inputs should be equal to the number of system outputs.
+    backward : :class:`Systembase` or :obj:`list` of :class:`Systembase`
+        A state-full or state-less SystemBase object, which can also be a ControllerBase object. The number of inputs should be equal to the number of system outputs.
 
     Examples
     ---------
@@ -89,23 +89,15 @@ class ClosedLoop(object):
         >>> CL = ClosedLoop(sys, contr)
     """
 
-    def __init__(self, system=None, controller=None):
-        self.system = None
-        self.controller = controller
-        if (issubclass(type(system), SystemBase)) or (system is None):
-            self.system = system
-        else:
-            error_text = '[ClosedLoop] the system object should be of the type SystemBase.'
-            raise TypeError(error_text)
-        if (issubclass(type(controller), ControllerBase)) or (controller is None):
-            self.controller = controller
-        else:
-            error_text = '[ClosedLoop] the controller object should be of the type ControllerBase.'
-            raise TypeError(error_text)
+    def __init__(self, forward=None, backward=None):
+        self._fwd_system = None
+        self._bwd_system = None
+        self.forward_system = (forward, False)
+        self.backward_system = (backward, False)
         self.block_diagram, self.indices = self.create_block_diagram()
         self.closed_loop_system = self.create_closed_loop_system()
-        self.renderer = ClosedLoopRenderer(self, **kwargs)
-    
+        self.renderer = self.closed_loop_system.renderer
+
     @property
     def forward_system(self):
         """
@@ -113,14 +105,26 @@ class ClosedLoop(object):
 
         The system in the forward path of the closed loop.
         """
-        return self.system
+        return self._fwd_system
     
     @forward_system.setter 
-    def forward_system(self, system):
+    def forward_system(self, system_args):
+        # Parse input arguments
+        if type(system_args) != tuple:
+            system = system_args
+            update_class_props = True
+        elif len(system_args) == 2:
+            system, update_class_props = system_args
+        else:
+            error_text="[ClosedLoop.forward_system] the function expects one or two arguments. {} were given.".format(len(system_args))
+            raise TypeError(error_text)
+        # Actual setter
         if issubclass(type(system), SystemBase):
-            self.system = system
-            self.block_diagram, self.indices = self.create_block_diagram()
-            self.closed_loop_system = self.create_closed_loop_system()
+            self._fwd_system = system
+            if update_class_props:
+                self.block_diagram, self.indices = self.create_block_diagram()
+                self.closed_loop_system = self.create_closed_loop_system()
+                self.renderer = self.closed_loop_system.renderer
         else:
             error_text = '[ClosedLoop.forward_system] the system object should be of the type SystemBase.'
             raise TypeError(error_text)
@@ -129,18 +133,30 @@ class ClosedLoop(object):
     @property
     def backward_system(self):
         """
-        :obj:`ControllerBase`
+        :obj:`SystemBase`
 
-        The controller in the backward path of the closed loop.
+        The system (often a ControllerBase object) in the backward path of the closed loop.
         """
-        return self.controller
+        return self._bwd_system
     
     @backward_system.setter 
-    def backward_system(self, controller):
-        if (issubclass(type(controller), ControllerBase)) or (controller is None):
-            self.controller = controller
-            self.block_diagram, self.indices = self.create_block_diagram()
-            self.closed_loop_system = self.create_closed_loop_system()
+    def backward_system(self, system_args):
+        # Parse input arguments
+        if type(system_args) != tuple:
+            system = system_args
+            update_class_props = True
+        elif len(system_args) == 2:
+            system, update_class_props = system_args
+        else:
+            error_text="[ClosedLoop.backward_system] the function expects one or two arguments. {} were given.".format(len(system_args))
+            raise TypeError(error_text)
+        # Actual setter
+        if (issubclass(type(system), SystemBase)) or (system is None):
+            self._bwd_system = system
+            if update_class_props:
+                self.block_diagram, self.indices = self.create_block_diagram()
+                self.closed_loop_system = self.create_closed_loop_system()
+                self.renderer = self.closed_loop_system.renderer
         else:
             error_text = '[ClosedLoop.backward_system] the controller object should be of the type ControllerBase.'
             raise TypeError(error_text)
@@ -156,9 +172,13 @@ class ClosedLoop(object):
             A Systembase object of the closed-loop system.
         '''
         states, state_equations = self.__get_states__()
-        system_dyn = DynamicalSystem(state_equation=Array(state_equations), state=states, output_equation=self.system.output_equation)
+        # Create input vector
         input_dim = self.backward_system.system.dim_output
-        return SystemBase(states=Array(states), inputs='r0:{}'.format(input_dim), sys=system_dyn, name="closed-loop", block_type='closedloop')
+        inputs = SystemBase.__process_init_input__(None, 'r0:{}'.format(input_dim))
+
+        # Define a simupy DynamicalSystem
+        system_dyn = DynamicalSystem(state_equation=Array(state_equations), state=states, output_equation=self._fwd_system.output_equation, input_=inputs)
+        return SystemBase(states=Array(states), inputs=inputs, sys=system_dyn, name="closed-loop", block_type='closedloop', forward_sys=self.forward_system, backward_sys=self.backward_system)
 
     def series(self, sys_append):
         """
@@ -177,12 +197,11 @@ class ClosedLoop(object):
         ---------
         \\ TODO
         """
-        closed_loop = self.create_closed_loop_system()
-        if (closed_loop.system.dim_output != sys_append.system.dim_input):
+        if (self.closed_loop_system.system.dim_output != sys_append.system.dim_input):
             error_text = '[ClosedLoop.series] Dimension of output of the closed-loop system is not equal to dimension of input of the appended system.'
             raise ValueError(error_text)
         else:
-            return closed_loop.series(sys_append)
+            return self.closed_loop_system.series(sys_append)
 
 
     def parallel(self, sys_append):
@@ -202,15 +221,14 @@ class ClosedLoop(object):
         ---------
         \\TODO
         """
-        closed_loop = self.create_closed_loop_system()
-        if (closed_loop.system.dim_input != sys_append.system.dim_input):
+        if (self.closed_loop_system.system.dim_input != sys_append.system.dim_input):
             error_text = '[ClosedLoop.parallel] Dimension of the input of the closed-loop system is not equal to the dimension of the input of the appended system.'
             raise ValueError(error_text)
-        elif (closed_loop.system.dim_output != sys_append.system.dim_output):
+        elif (self.closed_loop_system.system.dim_output != sys_append.system.dim_output):
             error_text = '[ClosedLoop.parallel] Dimension of the output of the closed-loop system is not equal to the dimension of the output of the appended system.'
             raise ValueError(error_text)
         else:
-            return closed_loop.parallel(sys_append)
+            return self.closed_loop_system.parallel(sys_append)
 
 
 
@@ -228,33 +246,33 @@ class ClosedLoop(object):
         states = []
         state_equations = []
         
-        if self.system is None:
-            if self.controller is None:
+        if self._fwd_system is None:
+            if self._bwd_system is None:
                 error_text = '[ClosedLoop.__get_states__] Both controller and system are None. One of them should at least contain a system.'
                 raise AssertionError(error_text)
             else:
-                if self.controller.states is not None:
-                    states.extend(self.controller.states)
-                    state_equations.extend(self.controller.state_equation)
+                if self._bwd_system.states is not None:
+                    states.extend(self._bwd_system.states)
+                    state_equations.extend(self._bwd_system.state_equation)
         else:
             substitutions_derivatives = dict()
-            unprocessed_substitutions_system = zip(self.system.inputs, (-1) * self.controller.output_equation)
+            unprocessed_substitutions_system = zip(self._fwd_system.inputs, (-1) * self._bwd_system.output_equation)
 
-            if self.system.states is not None:
+            if self._fwd_system.states is not None:
                 # Remove Derivative(., 't') from controller states and substitutions_system
-                minimal_dstates = self.system.states[1::2]
-                dstates = self.system.dstates[0::2]
+                minimal_dstates = self._fwd_system.states[1::2]
+                dstates = self._fwd_system.dstates[0::2]
                 substitutions_derivatives = dict(zip(dstates, minimal_dstates))
                 substitutions_system = dict([(k, msubs(v, substitutions_derivatives))\
                     for k, v in unprocessed_substitutions_system])
 
-                states.extend(self.system.states)
+                states.extend(self._fwd_system.states)
                 state_equations.extend([msubs(state_eq, substitutions_derivatives, substitutions_system)\
-                    for state_eq in self.system.state_equation])                
+                    for state_eq in self._fwd_system.state_equation])                
                  
-            if self.controller.states is not None:
-                states.extend(self.controller.states)
-                controller_state_eq = msubs(self.controller.state_equation, substitutions_derivatives)
+            if self._bwd_system.states is not None:
+                states.extend(self._bwd_system.states)
+                controller_state_eq = msubs(self._bwd_system.state_equation, substitutions_derivatives)
                 state_equations.extend(controller_state_eq)     
         return states, state_equations
     
@@ -302,17 +320,17 @@ class ClosedLoop(object):
             information on the ranges of the states and outputs in the output vectors of a simulation dataset.
         """
         if (forward_systems is None):
-            if (self.system is None):
+            if (self._fwd_system is None):
                 error_text = "[ClosedLoop.create_block_diagram] Both the forward_systems argument and the ClosedLoop.system variable are empty. Please provide a forward_system."
                 assert AssertionError(error_text)
             else:
-                forward_systems = [self.system]
+                forward_systems = [self._fwd_system]
         if (backward_systems is None):
-            if (self.system is None):
+            if (self._fwd_system is None):
                 error_text = "[ClosedLoop.create_block_diagram] Both the backward_systems argument and the ClosedLoop.controller variable are empty. Please provide a backward_system."
                 assert AssertionError(error_text)
             else:
-                backward_systems = [self.controller]
+                backward_systems = [self._bwd_system]
 
         BD = BlockDiagram()
         # Order of adding systems is important. The negative feedback_block needs to be added before the backward systems. This can be seen from simupy.block_diagram.BlockDiagram.output_equation_function(). Possibly only for stateless systems important. #TODO: check whether there is a problem with list of backward systems.
@@ -445,7 +463,7 @@ class ClosedLoop(object):
                 'max_step': 0.0
             }
 
-        self.system.system.initial_condition = initial_conditions
+        self._fwd_system.system.initial_condition = initial_conditions
         res = self.block_diagram.simulate(tspan, integrator_options=integrator_options)
         
         # Unpack indices
@@ -487,3 +505,7 @@ class ClosedLoop(object):
             plt.show()
 
         return res.t, (x_p, y_p, x_c, y_c)
+
+
+    def show(self, *args, **kwargs):
+        self.closed_loop_system.show(*args, **kwargs)

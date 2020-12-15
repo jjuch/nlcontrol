@@ -364,6 +364,12 @@ def generate_renderer_sources(renderer_info, recursion_depth=0):
                         cs['in_pos'] = cs_nodes[series_node]['in_pos']
                     elif i == len(cs_nodes) - 1:
                         cs['out_pos'] = cs_nodes[series_node]['out_pos']
+            elif cs['type'] == 'closedloop':
+                for cl_node in cs_nodes:
+                    if cs_nodes[cl_node]['type'] == 'common':
+                        cs['out_pos'] = cs_nodes[cl_node]['position']
+                    elif cs_nodes[cl_node]['type'] == 'summation':
+                        cs['in_pos'] = cs_nodes[cl_node]['in_pos'][1]
 
             
 
@@ -385,8 +391,8 @@ def generate_connection_coordinates(renderer_info):
     y_polynomials = []
     output = []
 
-    # print("======== renderer info: ")
-    # pretty_print_dict(renderer_info)
+    print("======== renderer info: ")
+    pretty_print_dict(renderer_info)
     new_renderer_info = flatten_nodes(renderer_info)
     # print("===== flattend renderer info")
     # pretty_print_dict(new_renderer_info)
