@@ -8,6 +8,7 @@ from bokeh.embed import file_html
 from bokeh.models import (Arrow, ColumnDataSource, Ellipse, HoverTool, MultiLine, NormalHead, PanTool, Plot, Range1d, Rect, Text)
 
 import uuid
+from collections import OrderedDict
 
 __all__ = ["RendererBase", "SystemRenderer", "ParallelRenderer", "SignalRenderer", "ClosedLoopRenderer"]
 
@@ -17,7 +18,6 @@ x_offset, y_offset = 0, 0
 class RendererBase(object):
     def __init__(self, system_obj, **kwargs):
         self.plot = None
-        self.plot_dict = dict()
         self.system_obj = system_obj
         self.renderer_info = None
 
@@ -215,7 +215,7 @@ class ParallelRenderer(RendererBase):
             'out_direction': 'right',
             'connect_to': [],
             'connect_from': [],
-            'nodes': dict(), 
+            'nodes': OrderedDict(), 
             'output': output,
             'renderer': self
         }
@@ -314,7 +314,7 @@ class SeriesRenderer(RendererBase):
             'out_direction': 'right',
             'connect_to': [],
             'connect_from': [],
-            'nodes': dict(), 
+            'nodes': OrderedDict(), 
             'output': output,
             'renderer': self
         }
@@ -412,7 +412,7 @@ class ClosedLoopRenderer(RendererBase):
             'out_direction': 'right',
             'connect_to': [],
             'connect_from': [],
-            'nodes': dict(),
+            'nodes': OrderedDict(),
             'output': output,
             'renderer': self
         }
