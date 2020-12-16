@@ -54,13 +54,12 @@ contr1.system = DynamicalSystem(
     output_equation=Array([l0, l1]), 
     input_=Array([u1, u2, u3, u4])
 )
-# print(contr1)
 # contr1.block_configuration
 contr1.show()
 
 
 ######### Test parallel
-test_parallel = False
+test_parallel = True
 if test_parallel:
     parallel_sys = EL1.parallel(EL2)
     parallel_sys.show(open_browser=True)
@@ -75,7 +74,7 @@ if test_parallel:
     triple_parallel.show(open_browser=True)
 
 ###### Test series
-test_series = False
+test_series = True
 if test_series:
     series_sys = EL1.series(EL3)
     series_sys.show(open_browser=True)
@@ -89,6 +88,10 @@ if test_series:
     series_parallel = parallel_sys.series(EL3)
     series_parallel.show(open_browser=True)
 
+test_CL = True
+if test_CL:
+    CL = ClosedLoop(forward=EL1, backward=contr1)
+    CL.show()
 
-CL = ClosedLoop(forward=EL1, backward=contr1)
-CL.show()
+    double_CL = ClosedLoop(forward=CL.closed_loop_system, backward=contr1)
+    double_CL.show()
