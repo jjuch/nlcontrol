@@ -791,6 +791,23 @@ class TransferFunction(SystemBase):
         {}
         """.format(self.tf)
 
+    
+    def __mul__(self, other):
+        if issubclass(type(other), TransferFunction):
+            new_tf = self.tf * other.tf
+            return TransferFunction(new_tf)
+        else:
+            try:
+                new_tf = self.tf * other
+                return TransferFunction(new_tf)
+            except:
+                error_text = "[nlcontrol.TransferFunction] It is only allowed to multiply nlcontrol's TransferFunction with another nlcontrol TransferFunction object or a numerical value. The object that was supplied is of type {}".format(type(other))
+                raise AssertionError(error_text)
+
+
+    def __rmul__(self, other):
+        self.__mul__(other)
+
 
     def __create_system__(self, state_space: StateSpace):
         state_equation = Matrix(state_space.A) * Matrix(self.states)\
