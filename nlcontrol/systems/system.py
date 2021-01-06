@@ -8,7 +8,7 @@ import types
 from sympy.physics.mechanics import dynamicsymbols
 from sympy.matrices import Matrix
 from sympy.tensor.array.ndim_array import NDimArray
-from sympy.physics.mechanics import msubs
+from sympy.physics.mechanics import msubs, find_dynamicsymbols
 from sympy import Symbol, diff
 from sympy.tensor.array import Array
 
@@ -34,7 +34,7 @@ DEFAULT_INTEGRATOR_OPTIONS = {
 
 class SystemBase(object):
     """
-    SystemBase(states, inputs, sys=None, name="system")
+    SystemBase(states, inputs, system=None, name="system")
 
     Returns a base structure for a system with outputs, optional inputs, and optional states. The system is defines by it state equations (optional):
 
@@ -62,26 +62,48 @@ class SystemBase(object):
     Examples
     ---------
     * Statefull system with one state, one input, and one output:
-        >>> from simupy.systems.symbolic import MemorylessSystem, DynamicalSystem
-        >>> from sympy.tensor.array import Array
         >>> states = 'x'
         >>> inputs = 'u'
         >>> sys = SystemBase(states, inputs)
         >>> x, xdot, u = sys.create_variables()
+        >>> sys.set_dynamics(output_equation=[x], state_equation=[-x + u])
+
+        OR with SimuPy (extra imports needed)
+
+        >>> from simupy.systems.symbolic import DynamicalSystem
+        >>> from sympy.tensor.array import Array
         >>> sys.system = DynamicalSystem(state_equation=Array([-x + u1]), state=x, output_equation=x, input_=u1)
+
 
     * Statefull system with two states, one input, and two outputs:
         >>> states = 'x1, x2'
         >>> inputs = 'u'
         >>> sys = SystemBase(states, inputs)
         >>> x1, x2, x1dot, x2dot, u = sys.create_variables()
+        >>> sys.set_dynamics(output_equation=[x1 * x2, x2], state_equation=[-x1 + x2**2 + u, -x2 + 0.5 * x1])
+
+        OR with SimuPy (extra imports needed)
+
         >>> sys.system = DynamicalSystem(state_equation=Array([-x1 + x2**2 + u, -x2 + 0.5 * x1]), state=Array([x1, x2]), output_equation=Array([x1 * x2, x2]), input_=u)
+
+
+    * Statefull system with one state, one input and the output equation contains the input (notice that this isn't possible with SimuPy. It is the nlcontrol wrapper that allows inputs on the output equation.)
+        >>> states = 'x'
+        >>> inputs = 'u'
+        >>> sys = SystemBase(states, inputs)
+        >>> x, xdot, u = sys.create_variables()
+        >>> sys.set_dynamics([x + u], state_equation=[-x + u])
 
     * Stateless system with one input:
         >>> states = None
         >>> inputs = 'w'
         >>> sys = SystemBase(states, inputs)
         >>> w = sys.create_variables()
+        >>> sys.set_dynamics(output_equation=[5 * w])
+
+        OR with SimuPy (extra imports needed)
+
+        >>> from simupy.systems.symbolic import MemorylessSystem
         >>> sys.system = MemorylessSystem(input_=Array([w]), output_equation= Array([5 * w]))
 
     * Create a copy a SystemBase object `sys' and linearize around the working point of state [0, 0] and working point of input 0 and simulate:
@@ -90,13 +112,14 @@ class SystemBase(object):
         >>> new_sys_lin.simulation(10)
 
     """
-    def __init__(self, states, inputs, sys=None, name="system", **kwargs):
-        self.sys = None
+    def __init__(self, states, inputs, system=None, name="system", **kwargs):
+        self._sys = None
+        self._additive_output_system = None # System with inputs for output equation
         self.name = None
         self.states = self.__process_init_input__(states)
         self.dstates = self.__process_init_input__(states, 1)
         self.inputs = self.__process_init_input__(inputs)
-        self.system = sys
+        self.system = system
         self.block_name = name
         self.renderer = None
 
@@ -159,11 +182,11 @@ class SystemBase(object):
         
         The system attribute of the SystemBase class. The system is defined using `simupy's DynamicalSystem <https://simupy.readthedocs.io/en/latest/api/symbolic_systems.html#simupy.systems.symbolic.DynamicalSystem>`__.
         """
-        return self.sys
+        return self._sys
 
     @system.setter
     def system(self, system):
-        self.sys = system
+        self._sys = system
 
     @property
     def state_equation(self):
@@ -183,9 +206,17 @@ class SystemBase(object):
         The output equation contains `sympy's dynamicsymbols <https://docs.sympy.org/latest/modules/physics/vector/api/functions.html#dynamicsymbols>`__.
         """
         if hasattr(self.system, 'output_equation'):
-            return self.system.output_equation
+            output_eq = self.system.output_equation
         elif hasattr(self.system, 'output_equation_function'):
-            return self.system.output_equation_function
+            output_eq = self.system.output_equation_function
+        if self._additive_output_system is not None:
+            if callable(output_eq):
+                t = Symbol('t')
+                output_eq = lambda t: output_eq(t) + self._additive_output_system.output_equation
+            else:
+                output_eq = output_eq + self._additive_output_system.output_equation
+        return output_eq
+                
 
 
     @property
@@ -246,6 +277,19 @@ class SystemBase(object):
                 return Array([dynamicsymbols(arg, level)])
 
 
+    def __process_output_equation__(self, output_equation):
+        """
+        The terms with and without input variables are separated. Notice that the method does not work when the states and inputs are multiplied with each other.
+        """
+        # Dicts with all inputs and states resp equal to zero
+        inputs_zero_dict = {inp: 0 for inp in self.inputs}
+        states_zero_dict = {st: 0 for st in self.states}
+        # Get subequations
+        output_without_inputs = Array([msubs(el, inputs_zero_dict) for el in output_equation])
+        output_without_states = Array([msubs(el, states_zero_dict) for el in output_equation])
+        return output_without_inputs, output_without_states
+
+
     def create_variables(self, input_diffs:bool=False, states=None) -> tuple:
         """
         Returns a tuple with all variables. First the states are given, next the derivative of the states, and finally the inputs, optionally followed by the diffs of the inputs. All variables are sympy dynamic symbols.
@@ -302,6 +346,44 @@ class SystemBase(object):
                 input_diff_list = Matrix([diff(input_el, Symbol('t')) for input_el in inputs_matrix])
                 var_list = input_diff_list.row_insert(0, var_list)
             return tuple(var_list) if len(var_list) > 1 else var_list
+
+
+    def set_dynamics(self, output_equation, state_equation=None):
+        if isinstance(output_equation, list): # Should be list or Array
+            output_equation = Array(output_equation)
+
+        if not (find_dynamicsymbols(output_equation) <= set(self.states) or set(self.inputs)):
+            error_text = "[SystemBase.set_dynamics] All dynamical symbols in the output equation should be included in the object's states and inputs."
+            raise AssertionError(error_text)
+        
+        if state_equation is None:
+            sys = MemorylessSystem(
+                output_equation=output_equation,
+                input_=self.inputs)
+            self._additive_output_system = None
+        else:
+            if isinstance(state_equation, list): # Should be list or Array
+                state_equation = Array(state_equation)
+            if not (find_dynamicsymbols(state_equation) <= set(self.states) or set(self.inputs)):
+                error_text = "[SystemBase.set_dynamics] All dynamical symbols in the state equation should be included in the object's states and inputs."
+                raise AssertionError(error_text)
+
+            if set(self.inputs) <= find_dynamicsymbols(output_equation):
+                output_without_inputs, output_with_inputs = self.__process_output_equation__(output_equation)
+                # Add a memoryless system with the part of the output equation that contains the inputs
+                self._additive_output_system = MemorylessSystem(
+                    input_=self.inputs, 
+                    output_equation=output_with_inputs
+                )
+            else:
+                self._additive_output_system = None
+                output_without_inputs = output_equation
+            sys = DynamicalSystem(
+                state_equation=state_equation, 
+                output_equation=output_without_inputs,
+                state=self.states,
+                input_=self.inputs)
+        self.system = sys
 
     
     def linearize(self, working_point_states, working_point_inputs=None):
@@ -367,7 +449,7 @@ class SystemBase(object):
         state_equation_linearized = create_linear_equation(self.system.state_equation)
         output_equation_linearized = create_linear_equation(self.system.output_equation)
         system_dyn = DynamicalSystem(state_equation=state_equation_linearized, state=self.states, input_=self.inputs, output_equation=output_equation_linearized)
-        system = SystemBase(states=self.states, inputs=self.inputs, sys=system_dyn)
+        system = SystemBase(states=self.states, inputs=self.inputs, system=system_dyn)
         
         def get_state_space_matrices(state_equations, output_equations):
             A = []
@@ -414,12 +496,12 @@ class SystemBase(object):
             >>> print('State eqs: ', series_sys.system.state_equation)
             >>> print('Output eqs: ', series_sys.system.output_equation)
         """
-        if (self.sys.dim_output != sys_append.sys.dim_input):
+        if (self._sys.dim_output != sys_append.sys.dim_input):
             error_text = '[SystemBase.series] Dimension of output of the first system is not equal to dimension of input of the second system.'
             raise ValueError(error_text)
         else:
             inputs = self.inputs
-            substitutions = dict(zip(sys_append.sys.input, self.sys.output_equation))
+            substitutions = dict(zip(sys_append.sys.input, self._sys.output_equation))
             output_equations =  Array([msubs(expr, substitutions) for expr in sys_append.sys.output_equation])
             if (self.states is None):
                 if (sys_append.states is None):
@@ -431,11 +513,11 @@ class SystemBase(object):
             else:
                 if (sys_append.states is None):
                     states = self.states
-                    state_equations = self.sys.state_equation
+                    state_equations = self._sys.state_equation
                 else:
                     states = Array(self.states.tolist() + sys_append.states.tolist())
                     state_equations2 = Array(msubs(expr, substitutions) for expr in sys_append.sys.state_equation)
-                    state_equations = Array(self.sys.state_equation.tolist() + state_equations2.tolist())
+                    state_equations = Array(self._sys.state_equation.tolist() + state_equations2.tolist())
                 return SystemBase(states, inputs, DynamicalSystem(state_equation=state_equations, state=states, input_=inputs, output_equation=output_equations), block_type="series", systems = [self, sys_append])
 
 
@@ -461,16 +543,16 @@ class SystemBase(object):
             >>> print('State eqs: ', parallel_sys.system.state_equation)
             >>> print('Output eqs: ', parallel_sys.system.output_equation)
         """
-        if (self.sys.dim_input != sys_append.sys.dim_input):
+        if (self._sys.dim_input != sys_append.sys.dim_input):
             error_text = '[SystemBase.parallel] Dimension of the input of the first system is not equal to the dimension of the input of the second system.'
             raise ValueError(error_text)
-        elif (self.sys.dim_output != sys_append.sys.dim_output):
+        elif (self._sys.dim_output != sys_append.sys.dim_output):
             error_text = '[SystemBase.parallel] Dimension of the output of the first system is not equal to the dimension of the output of the second system.'
             raise ValueError(error_text)
         else:
             inputs = self.inputs
-            substitutions = dict(zip(sys_append.sys.input, self.sys.input))
-            output_equations = Array([value[0] + value[1] for value in zip(self.sys.output_equation, [msubs(expr, substitutions) for expr in sys_append.sys.output_equation])])
+            substitutions = dict(zip(sys_append.sys.input, self._sys.input))
+            output_equations = Array([value[0] + value[1] for value in zip(self._sys.output_equation, [msubs(expr, substitutions) for expr in sys_append.sys.output_equation])])
             if (self.states is None):
                 if (sys_append.states is None):
                     return SystemBase(None, inputs, MemorylessSystem(input_=inputs, output_equation=output_equations))
@@ -481,11 +563,11 @@ class SystemBase(object):
             else:
                 if (sys_append.states is None):
                     states = self.states
-                    state_equations = self.sys.state_equation
+                    state_equations = self._sys.state_equation
                 else:
                     states = Array(self.states.tolist() + sys_append.states.tolist())
                     state_equations2 = Array(msubs(expr, substitutions) for expr in sys_append.sys.state_equation)
-                    state_equations = Array(self.sys.state_equation.tolist() + state_equations2.tolist())
+                    state_equations = Array(self._sys.state_equation.tolist() + state_equations2.tolist())
                 return SystemBase(states, inputs, DynamicalSystem(state_equation=state_equations, state=states, input_=inputs, output_equation=output_equations), block_type="parallel", systems = [self, sys_append])
 
     
@@ -530,6 +612,8 @@ class SystemBase(object):
                     state vectors.
                 y : ndarray
                     input and ouput vectors.
+                u : ndarray
+                    input vectors. Is an empty list if the system has no inputs.
                 res : SimulationResult object
                     A class object which contains information on events, next to the above vectors.
             -> stateless system :
@@ -810,10 +894,17 @@ class TransferFunction(SystemBase):
 
 
     def __create_system__(self, state_space: StateSpace):
+        # Create state equation
         state_equation = Matrix(state_space.A) * Matrix(self.states)\
             + Matrix(state_space.B) * Matrix(self.inputs)
+        state_equation = state_equation.T
+        state_equation = Array(state_equation[:])
+        # Create output equation
         output_equation = Matrix(state_space.C) * Matrix(self.states)\
             + Matrix(state_space.D) * Matrix(self.inputs)
+        output_equation = output_equation.T
+        output_equation = Array(output_equation[:])
+
         self.system = DynamicalSystem(
             state_equation=state_equation,
             output_equation=output_equation,

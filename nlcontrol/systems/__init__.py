@@ -22,7 +22,7 @@ Functions:
 
 """
 
-from .system import SystemBase
+from .system import SystemBase, TransferFunction
 from .eula import EulerLagrange
 from .controllers import *
 from .utils import write_simulation_result_to_csv, read_simulation_result_from_csv
