@@ -11,6 +11,8 @@ from sympy.tensor.array.ndim_array import NDimArray
 from sympy.physics.mechanics import msubs, find_dynamicsymbols
 from sympy import Symbol, diff
 from sympy.tensor.array import Array
+from sympy.core import Add as sympy_add
+from sympy import Expr
 
 from simupy.block_diagram import BlockDiagram, SimulationResult
 from simupy.systems.symbolic import MemorylessSystem, DynamicalSystem, lambdify_with_vector_args
@@ -211,7 +213,7 @@ class SystemBase(object):
 
     @dstates.setter
     def dstates(self, new_states):
-        self._dstates = self.__format_dynamic_vectors__(new_dstates, 1)
+        self._dstates = self.__format_dynamic_vectors__(new_states, 1)
 
 
     @property
@@ -245,7 +247,6 @@ class SystemBase(object):
             output_eq = self.system.output_equation
         elif hasattr(self.system, 'output_equation_function'):
             output_eq = self.system.output_equation_function
-        # TODO: check with multi-dim output eq
         if self._additive_output_system is not None:
             if callable(output_eq):
                 t = Symbol('t')
@@ -317,15 +318,31 @@ class SystemBase(object):
 
     def __process_output_equation__(self, output_equation):
         """
-        The terms with and without input variables are separated. Notice that the method does not work when the states and inputs are multiplied with each other.
+        The terms with and without input variables are separated. Notice that the method does not work for cross-terms of states and inputs, e.g. x(t) * u(t).
         """
-        # Dicts with all inputs and states resp equal to zero
-        inputs_zero_dict = {inp: 0 for inp in self.inputs}
-        states_zero_dict = {st: 0 for st in self.states}
-        # Get subequations
-        output_without_inputs = Array([msubs(el, inputs_zero_dict) for el in output_equation])
-        output_without_states = Array([msubs(el, states_zero_dict) for el in output_equation])
-        return output_without_inputs, output_without_states
+        output_without_inputs = len(output_equation) * [0]
+        output_without_states = len(output_equation) * [0]
+        for i, out_eq in enumerate(output_equation):
+            # If it is an addition, loop through all terms. Else, take it as a whole. Only Expressions are allowed.
+            if isinstance(out_eq, sympy_add):
+                terms = out_eq.args
+            elif isinstance(out_eq, Expr):
+                terms = [out_eq]
+            else:
+                error_text = "[SystemBase]The output equations should be (SymPy) expressions."
+                raise ValueError(error_text)
+            for term in terms:
+                # Check if the set is non-empty, contains inputs and states, implying cross-terms
+                if bool(find_dynamicsymbols(term)) and(find_dynamicsymbols(term) <= set(self.inputs)) and (find_dynamicsymbols(term) <= set(self.states)):
+                    error_text = "[SystemBase] The output equation contains cross-terms of states and inputs. This is not allowed."
+                    raise ValueError(error_text)
+                # All terms with input variables
+                elif find_dynamicsymbols(term) <= set(self.inputs):
+                    output_without_states[i] += term
+                # All other terms, also constants
+                else:
+                    output_without_inputs[i] += term
+        return Array(output_without_inputs), Array(output_without_states)
 
 
     def create_variables(self, input_diffs:bool=False, states=None) -> tuple:

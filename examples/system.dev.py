@@ -4,7 +4,7 @@ from simupy.block_diagram import BlockDiagram
 from simupy.systems.symbolic import MemorylessSystem, DynamicalSystem
 from simupy.systems import SystemFromCallable
 from sympy.tensor.array import Array
-from sympy import Symbol
+from sympy import Symbol, sin
 
 import numpy as np
 
@@ -24,7 +24,7 @@ states1a = 'x1a'
 inputs1a = 'u1a'
 sys1a = SystemBase(states1a, inputs1a)
 x1a, x1adot, u1a = sys1a.create_variables()
-sys1a.set_dynamics(output_equation=[x1a + u1a, x1a - u1a], state_equation=[-x1a + u1a])
+sys1a.set_dynamics(output_equation=[x1a + u1a + sin(u1a), x1a - u1a + 1, 0], state_equation=[-x1a + u1a])
 print(sys1a)
 sys1a_lin, _ = sys1a.linearize(1)
 print(sys1a_lin)
