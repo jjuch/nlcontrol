@@ -24,10 +24,11 @@ states1a = 'x1a'
 inputs1a = 'u1a'
 sys1a = SystemBase(states1a, inputs1a)
 x1a, x1adot, u1a = sys1a.create_variables()
-sys1a.set_dynamics(output_equation=[x1a + u1a], state_equation=[-x1a + u1a])
+sys1a.set_dynamics(output_equation=[x1a + u1a, x1a - u1a], state_equation=[-x1a + u1a])
 print(sys1a)
 sys1a_lin, _ = sys1a.linearize(1)
-print('state_eq: ', sys1a_lin.system.state_equation)
+print(sys1a_lin)
+print('output_eq: ', sys1a_lin.output_equation)
 exit()
 
 
