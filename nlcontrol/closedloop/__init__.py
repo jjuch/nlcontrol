@@ -11,8 +11,9 @@ Classes:
 Functions:
     * blocks : 
         gain_block : Multiply signals with constant.
+        summation_block :  Sum two signals together.
 
 """
 
 from .feedback import ClosedLoop
-from .blocks import gain_block
+from .blocks import gain_block, summation_block

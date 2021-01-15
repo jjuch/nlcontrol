@@ -205,6 +205,8 @@ class SystemBase(object):
     @states.setter
     def states(self, new_states):
         self._states = self.__format_dynamic_vectors__(new_states)
+        # Update dstates whenever states are updated
+        self.dstates = new_states
 
 
     @property
@@ -377,11 +379,6 @@ class SystemBase(object):
         else:
             dstates = [diff(state, Symbol('t')) for state in states]
         if states is None:
-            # if len(tuple(self.inputs)) == 1:
-                
-            #     return tuple(self.inputs)[0]
-            # else:
-            #     return tuple(self.inputs)
             inputs_matrix = Matrix(self.inputs)
             if input_diffs:
                 input_diff_list = Matrix([diff(input_el, Symbol('t')) for input_el in inputs_matrix])
@@ -742,7 +739,9 @@ class SystemBase(object):
             >>> t, y, u = sys_stateless.simulation(40, number_of_samples=1500, input_signals=step_signal, plot=True)
         """
         base_system = self.__copy__()
+        # Memoryless system
         if base_system.states is None:
+            # Create time axis
             if np.isscalar(tspan):
                 t = np.linspace(0, tspan, number_of_samples)
             elif len(tspan) == 2:
@@ -751,12 +750,15 @@ class SystemBase(object):
                 t = np.array(tspan)
 
             func = self.__get_output_equation__()
+            # System has no input
             if base_system.inputs is None:
                 u = []
                 y = np.stack([func(t_el) for t_el in t])
             else:
                 if input_signals is None:
+                    # Free response
                     input_signals = sgnls.empty_signal(base_system.system.dim_input)
+                # signals have Sympy SystemFromCallable object
                 u = np.stack([input_signals.system.output_equation_function(t_i) for t_i in t])
                 y = np.stack([func(u_el) for u_el in u])
             if plot:
@@ -771,9 +773,16 @@ class SystemBase(object):
                 plt.legend()
                 plt.show()
             return t, y, u
-            
+        # State-full system
         else: 
             BD = self.__connect_input__(input_signals, base_system=base_system)
+            # Add terms containing input variables
+            if self._additive_output_system is not None:
+                BD = self.__connect_on_output__(
+                    self._additive_output_system, 
+                    BD, 
+                    base_system=base_system,
+                    input_signal=input_signals)
             if initial_conditions is not None:
                 if isinstance(initial_conditions, (int, float)):
                     initial_conditions = [initial_conditions]
@@ -804,10 +813,23 @@ class SystemBase(object):
             
             t = res.t
             x = res.x
-            if len(res.y[0]) == (base_system.system.dim_input + base_system.system.dim_output):
-                y = res.y[:, max_inputs_index:]
+            # Order of systems in block_diagram: input_signal -> base_system => correct output is the base_system's output
+            start_idx_res_y = max_inputs_index
+            end_idx_res_y = -1
+            expected_len_res_y = base_system.system.dim_input + base_system.system.dim_output
+            if self._additive_output_system is not None:
+                additive_output_dim = self._additive_output_system.dim_output
+                expected_len_res_y += additive_output_dim # output dim of additive system
+                expected_len_res_y += additive_output_dim # output of summation
+                expected_len_res_y += self._additive_output_system.dim_input # Additional input block to additive output system
+                # Order of systems in block_diagram: input_signal -> base_system -> summation -> _additive_output_system -> input_signal => correct output is the summation's output
+                start_idx_res_y += base_system.system.dim_output
+                end_idx_res_y -= (self._additive_output_system.dim_input + additive_output_dim - 1)
+            if len(res.y[0]) == expected_len_res_y:
+                y = res.y[:, start_idx_res_y:end_idx_res_y]
                 u = res.y[:, :max_inputs_index]
             else:
+                # In case of no input signal
                 y = res.y
                 shape_u = (len(t), base_system.system.dim_input)
                 u = np.zeros(shape_u)
@@ -860,6 +882,70 @@ class SystemBase(object):
             
             BD.connect(input_signal.system, base_system.system)
         return BD
+
+
+    def __connect_on_output__(self, output_system, block_diagram, base_system=None, input_signal=None):
+        """
+        Connects an output block with an input signal to a SystemBase object `base_system` in an existing simupy.BlockDiagram. 
+        
+        Notice that the input_signal is added twice to the block_diagram. This is because the blocks should be added from output to input. The order of the blocks is input_signal, base_system, summation, output_system, input_signal. This has to do with the order of evaluation in SimuPy's simulate function.
+        """
+        # Check method arguments
+        if not isinstance(block_diagram, BlockDiagram):
+            error_text = "[SystemBase.__connect_output__] The block_diagram should be a SymPy BlockDiagram instance."
+            raise TypeError(error_text)
+        
+        if not isinstance(output_system, (SystemBase, MemorylessSystem)):
+            error_text = "[SystemBase.__connect_output__] The output_system should be a SystemBase instance."
+            raise TypeError(error_text)
+        elif isinstance(output_system, SystemBase):
+            output_system = output_system.system
+        if base_system is None:
+            base_system = self
+        elif not isinstance(base_system, SystemBase):
+            error_text = "[SystemBase.__connect_output__] The base_system should be a SystemBase instance."
+            raise TypeError(error_text)
+        elif not base_system in set(block_diagram.systems):
+            error_text = "[SystemBase.__connect_output__] The base_system should be present in the block_diagram. Hint: use the block_diagram that is returned by __connect_input__."
+        # Add summation block to block diagram to sum base and output system
+        output_dim = output_system.dim_output
+        if output_dim != base_system.system.dim_output:
+            error_text = "[SystemBase.__connect_output__] The dimension of the output_system and base_system should be the same."
+        import nlcontrol.closedloop.blocks as blocks
+        summation = blocks.summation_block(output_dim)
+        block_diagram.add_system(summation)
+
+        # Add input signal to block diagram.
+        if input_signal is None:
+            input_signal = sgnls.empty_signal(output_system.dim_input)
+        elif not isinstance(input_signal, SystemBase):
+            error_text = "[SystemBase.__connect_output__] The input_signal should be a SystemBase instance."
+            raise TypeError(error_text)
+        if not input_signal.system in set(block_diagram.systems):
+            block_diagram.add_system(input_signal.system)
+        # Add output system to block diagram
+        if not output_system in set(block_diagram.systems):
+            block_diagram.add_system(output_system)
+        # Add input signal to block diagram.
+        if input_signal is None:
+            input_signal = sgnls.empty_signal(output_system.dim_input)
+        elif not isinstance(input_signal, SystemBase):
+            error_text = "[SystemBase.__connect_output__] The input_signal should be a SystemBase instance."
+            raise TypeError(error_text)
+        if not input_signal.system in set(block_diagram.systems):
+            block_diagram.add_system(input_signal.system)
+        else:
+            input_signal = copy(input_signal)
+            block_diagram.add_system(input_signal.system)
+        # Connect input signal to output_system
+        block_diagram.connect(input_signal.system, output_system)
+        indices_base_system = [i for i in range(output_dim)]
+        indices_output_system = [output_dim + el for el in indices_base_system]
+        # Connections to the summation block
+        block_diagram.connect(base_system.system, summation, inputs=indices_base_system)
+        block_diagram.connect(output_system, summation, inputs=indices_output_system)
+        return block_diagram
+        
 
 
     def __simulation_loop__(self, time, block_diagram, system_with_states, integrator_options):
@@ -999,12 +1085,13 @@ class TransferFunction(SystemBase):
             + Matrix(state_space.D) * Matrix(self.inputs)
         output_equation = output_equation.T
         output_equation = Array(output_equation[:])
-
-        self.system = DynamicalSystem(
-            state_equation=state_equation,
-            output_equation=output_equation,
-            state=self.states, 
-            input_=self.inputs)
+        self.set_dynamics(output_equation, state_equation=state_equation)
+        # Outdated:
+        # self.system = DynamicalSystem(
+        #     state_equation=state_equation,
+        #     output_equation=output_equation,
+        #     state=self.states, 
+        #     input_=self.inputs)
 
     def linearize(self, *args, **kwargs):
         """

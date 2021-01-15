@@ -20,16 +20,16 @@ import numpy as np
 # sys1_lin, _ = sys1.linearize(1)
 # print('state_eq: ', sys1_lin.system.state_equation)
 
-states1a = 'x1a'
-inputs1a = 'u1a'
-sys1a = SystemBase(states1a, inputs1a)
-x1a, x1adot, u1a = sys1a.create_variables()
-sys1a.set_dynamics(output_equation=[x1a + u1a + sin(u1a), x1a - u1a + 1, 0], state_equation=[-x1a + u1a])
-print(sys1a)
-sys1a_lin, _ = sys1a.linearize(1)
-print(sys1a_lin)
-print('output_eq: ', sys1a_lin.output_equation)
-exit()
+# states1a = 'x1a'
+# inputs1a = 'u1a'
+# sys1a = SystemBase(states1a, inputs1a)
+# x1a, x1adot, u1a = sys1a.create_variables()
+# sys1a.set_dynamics(output_equation=[x1a + u1a + sin(u1a), x1a - u1a + 1, 0], state_equation=[-x1a + u1a])
+# print(sys1a)
+# sys1a_lin, _ = sys1a.linearize(1)
+# print(sys1a_lin)
+# print('output_eq: ', sys1a_lin.output_equation)
+# exit()
 
 
 # states2 = None
@@ -64,14 +64,13 @@ sys4.system = DynamicalSystem(state_equation=Array([-x3 + x4**2 + u3, -x4 + 0.5 
 sys4.set_dynamics(output_equation=[x3 * x4, x4], state_equation=[-x3 + x4**2 + u3, -x4 + 0.5 * x3])
 sys4_lin, _ = sys4.linearize([2, 1], 1)
 print('state_eq: ', sys4_lin.system.state_equation)
-exit()
+
 
 states5 = 'x5'
 inputs5 = 'u4, u5'
 sys5 = SystemBase(states5, inputs5)
 x5, x5dot, u4, u5 = sys5.create_variables()
-sys5.system = DynamicalSystem(state_equation=Array([-x5 + u4 - u5]), state=Array([x5]), output_equation=Array([x5]), input_=Array([u4, u5]))
-
+sys5.set_dynamics(output_equation=[x5], state_equation=[-x5 + u4 - u5])
 
 mode = 'series'
 if mode is 'series':

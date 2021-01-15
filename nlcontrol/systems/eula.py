@@ -90,9 +90,9 @@ class EulerLagrange(SystemBase):
 
     def __init__(self, states, inputs, **kwargs):
         minimal_states, extended_states = self.__extend_states__(states)
-        self.minimal_states = self.__process_init_input__(minimal_states)
-        if 'sys' not in kwargs:
-            kwargs['sys'] = None
+        self.minimal_states = self.__format_dynamic_vectors__(minimal_states)
+        if 'system' not in kwargs:
+            kwargs['system'] = None
         if 'name' not in kwargs:
             kwargs['name'] = "EL system"
         super().__init__(extended_states, inputs, block_type='system', **kwargs)
