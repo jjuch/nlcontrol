@@ -51,7 +51,7 @@ def append(*signals):
         return values
     
     system = SystemFromCallable(callable, 0, dim)
-    return nlSystems.SystemBase(states=None, inputs=None, sys=system)
+    return nlSystems.SystemBase(states=None, inputs=None, system=system)
 
 def add(signal1, signal2):
     """
@@ -102,4 +102,4 @@ def add(signal1, signal2):
             in zip(signal1.system.output_equation_function(t), signal2.system.output_equation_function(t))])
 
     system = SystemFromCallable(callable, 0, dim)
-    return nlSystems.SystemBase(states=None, inputs=None, sys=system)
+    return nlSystems.SystemBase(states=None, inputs=None, system=system)

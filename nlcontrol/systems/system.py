@@ -404,7 +404,10 @@ class SystemBase(object):
         if isinstance(output_equation, list): # Should be list or Array
             output_equation = Array(output_equation)
 
-        if not (find_dynamicsymbols(output_equation) <= set(self.states) or set(self.inputs)):
+        dynamic_states_inputs = set(self.inputs)
+        if self.states is not None:
+            dynamic_states_inputs.update(self.states)
+        if not (find_dynamicsymbols(output_equation) <= dynamic_states_inputs):
             error_text = "[SystemBase.set_dynamics] All dynamical symbols in the output equation should be included in the object's states and inputs."
             raise AssertionError(error_text)
         
@@ -551,12 +554,12 @@ class SystemBase(object):
             >>> print('State eqs: ', series_sys.system.state_equation)
             >>> print('Output eqs: ', series_sys.system.output_equation)
         """
-        if (self._sys.dim_output != sys_append.sys.dim_input):
+        if (self._sys.dim_output != sys_append._sys.dim_input):
             error_text = '[SystemBase.series] Dimension of output of the first system is not equal to dimension of input of the second system.'
             raise ValueError(error_text)
         else:
             inputs = self.inputs
-            substitutions = dict(zip(sys_append.sys.input, self.output_equation))
+            substitutions = dict(zip(sys_append._sys.input, self.output_equation))
             output_equations =  Array([msubs(expr, substitutions) for expr in sys_append.output_equation])
             system = SystemBase(None, inputs, block_type="series", systems = [self, sys_append])
             if (self.states is None):
@@ -566,7 +569,7 @@ class SystemBase(object):
                     # return SystemBase(None, inputs, MemorylessSystem(input_=inputs, output_equation=output_equations))
                 else:
                     states = sys_append.states
-                    state_equations = Array([msubs(expr, substitutions) for expr in sys_append.sys.state_equation])
+                    state_equations = Array([msubs(expr, substitutions) for expr in sys_append._sys.state_equation])
                     system.states = states
                     system.set_dynamics(
                         output_equations,
@@ -580,7 +583,7 @@ class SystemBase(object):
                     state_equations = self._sys.state_equation
                 else:
                     states = Array(self.states.tolist() + sys_append.states.tolist())
-                    state_equations2 = Array(msubs(expr, substitutions) for expr in sys_append.sys.state_equation)
+                    state_equations2 = Array(msubs(expr, substitutions) for expr in sys_append._sys.state_equation)
                     state_equations = Array(self._sys.state_equation.tolist() + state_equations2.tolist())
                 system.states = states
                 system.set_dynamics(
@@ -614,15 +617,15 @@ class SystemBase(object):
             >>> print('State eqs: ', parallel_sys.system.state_equation)
             >>> print('Output eqs: ', parallel_sys.system.output_equation)
         """
-        if (self._sys.dim_input != sys_append.sys.dim_input):
+        if (self._sys.dim_input != sys_append._sys.dim_input):
             error_text = '[SystemBase.parallel] Dimension of the input of the first system is not equal to the dimension of the input of the second system.'
             raise ValueError(error_text)
-        elif (self._sys.dim_output != sys_append.sys.dim_output):
+        elif (self._sys.dim_output != sys_append._sys.dim_output):
             error_text = '[SystemBase.parallel] Dimension of the output of the first system is not equal to the dimension of the output of the second system.'
             raise ValueError(error_text)
         else:
             inputs = self.inputs
-            substitutions = dict(zip(sys_append.sys.input, self._sys.input))
+            substitutions = dict(zip(sys_append._sys.input, self._sys.input))
             output_equations = Array([value[0] + value[1] \
                 for value in \
                     zip(
@@ -651,7 +654,7 @@ class SystemBase(object):
                     state_equations = self._sys.state_equation
                 else:
                     states = Array(self.states.tolist() + sys_append.states.tolist())
-                    state_equations2 = Array(msubs(expr, substitutions) for expr in sys_append.sys.state_equation)
+                    state_equations2 = Array(msubs(expr, substitutions) for expr in sys_append._sys.state_equation)
                     state_equations = Array(self._sys.state_equation.tolist() + state_equations2.tolist())
                 system.states = states
                 system.set_dynamics(
@@ -815,7 +818,7 @@ class SystemBase(object):
             x = res.x
             # Order of systems in block_diagram: input_signal -> base_system => correct output is the base_system's output
             start_idx_res_y = max_inputs_index
-            end_idx_res_y = -1
+            end_idx_res_y = None
             expected_len_res_y = base_system.system.dim_input + base_system.system.dim_output
             if self._additive_output_system is not None:
                 additive_output_dim = self._additive_output_system.dim_output
@@ -824,7 +827,7 @@ class SystemBase(object):
                 expected_len_res_y += self._additive_output_system.dim_input # Additional input block to additive output system
                 # Order of systems in block_diagram: input_signal -> base_system -> summation -> _additive_output_system -> input_signal => correct output is the summation's output
                 start_idx_res_y += base_system.system.dim_output
-                end_idx_res_y -= (self._additive_output_system.dim_input + additive_output_dim - 1)
+                end_idx_res_y = (self._additive_output_system.dim_input - 1 + additive_output_dim - 1)
             if len(res.y[0]) == expected_len_res_y:
                 y = res.y[:, start_idx_res_y:end_idx_res_y]
                 u = res.y[:, :max_inputs_index]

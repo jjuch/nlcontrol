@@ -75,15 +75,15 @@ class ControllerBase(SystemBase):
             states = kwargs['states']
         else:
             states = None
-        if 'sys' in kwargs.keys():
-            sys = kwargs['sys']
+        if 'system' in kwargs.keys():
+            sys = kwargs['system']
         else:
             sys = None
         if 'name' in kwargs.keys():
             name = kwargs['name']
         else:
             name = "controller"
-        super().__init__(states, inputs, sys=sys, name=name, block_type="controller")
+        super().__init__(states, inputs, system=sys, name=name, block_type="controller")
         self.dinputs, self.iinputs = self.__create_inputs__()
 
     

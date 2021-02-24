@@ -7,7 +7,7 @@ from sympy import Symbol
 
 import numpy as np
 
-__all__ = ["step", "sinusoid", "impulse", "empty_signal"]
+__all__ = ["step", "sinusoid", "impulse", "empty_signal", "custom"]
 
 def step(dim=None, step_times=None, begin_values=None, end_values=None):
     """
@@ -285,4 +285,36 @@ def empty_signal(dim):
     return nlSystems.SystemBase(states=None, inputs=None, system=system)
 
 
-      
+def custom(times, values):
+    """
+    Creates a BaseSystem class object with a zero signal. The signal can consist of multiple channels. This makes it possible to connect a zero input to a system if needed.
+
+    Parameters:
+    -----------
+        dim: int
+            The number of channels.
+
+    Returns:
+    --------
+        A SystemBase object with parameters:
+            states : NoneType
+                None
+            inputs : NoneType
+                None
+            sys : SystemFromCallable object 
+                with a function 'callable' returning a numpy array with zeros, 0 inputs, and dim outputs.
+    """
+    def callable(t, *args):
+        zero_crossings = np.where(np.diff(np.sign(times - t)))[0]
+        idx_t = -1 if len(zero_crossings) == 0 else zero_crossings[0]
+        val = np.array([values[idx_t]])
+        return val
+
+    if type(values) != list or type(times) != list:
+        error_text = "[signal.custom] The values and times should be of type list."
+        raise TypeError(error_text)
+    if len(values) != len(times):
+        error_text = "[signal.custom] The values and times vectors should have the same length."
+        raise ValueError(error_text)
+    system = SystemFromCallable(callable, 0, 1)
+    return nlSystems.SystemBase(states=None, inputs=None, system=system, name="input", block_type='signal')

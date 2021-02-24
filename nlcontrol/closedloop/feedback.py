@@ -174,11 +174,11 @@ class ClosedLoop(object):
         states, state_equations = self.__get_states__()
         # Create input vector
         input_dim = self.backward_system.system.dim_output
-        inputs = SystemBase.__process_init_input__(None, 'r0:{}'.format(input_dim))
+        inputs = SystemBase.__format_dynamic_vectors__(None, 'r0:{}'.format(input_dim))
 
         # Define a simupy DynamicalSystem
         system_dyn = DynamicalSystem(state_equation=Array(state_equations), state=states, output_equation=self._fwd_system.output_equation, input_=inputs)
-        return SystemBase(states=Array(states), inputs=inputs, sys=system_dyn, name="closed-loop", block_type='closedloop', forward_sys=self.forward_system, backward_sys=self.backward_system)
+        return SystemBase(states=Array(states), inputs=inputs, system=system_dyn, name="closed-loop", block_type='closedloop', forward_sys=self.forward_system, backward_sys=self.backward_system)
 
     def series(self, sys_append):
         """

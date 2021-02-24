@@ -16,5 +16,5 @@ Functions:
 
 """
 
-from .signal_constructors import step, empty_signal, sinusoid, impulse
+from .signal_constructors import step, empty_signal, sinusoid, impulse, custom
 from .signal_tools import append, add
