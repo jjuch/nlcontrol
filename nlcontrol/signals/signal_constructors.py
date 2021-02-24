@@ -285,16 +285,18 @@ def empty_signal(dim):
     return nlSystems.SystemBase(states=None, inputs=None, system=system)
 
 
-def custom(times, values):
+def custom(times, values, interpolation='constant'):
     """
-    Creates a BaseSystem class object with a custom signal. The signal can consist of one channel. The samples before the first time instance are set to zero.
+    Creates a BaseSystem class object with a custom signal. The signal can consist of one channel. The samples before the first time instance are set to zero. The way of interpolating between points can be chosen as piecewise continuous or linear.
 
     Parameters:
     -----------
         times: list
             The time vector, which should contain time values in consecutive order. The vector should have the same length as `values'.
         values: list
-            The vector with the values for the corresponding times. The vector should have the same length as `times'.        
+            The vector with the values for the corresponding times. The vector should have the same length as `times'.
+        interpolation: string, optional
+            The interpolation way in between points. Options are `constant', `linear'.   
 
     Returns:
     --------
@@ -307,7 +309,18 @@ def custom(times, values):
                 with a function 'callable' returning a numpy array with the custom output values.
     Examples:
     ---------
-        #TODO
+        * An example of a constant piecewise custom signal:
+        >>> t = [0.050,0.100,0.150,0.200,0.250,0.300,0.350,0.400,0.450,0.500,0.550,0.600,0.650,0.700,0.750,0.800,0.850,0.900,0.950]
+        >>> val = [-70.268,-89.339,-90.412,-23.362,5.549,3.897,53.035,81.991,71.318,54.354,42.674,32.902,37.329,54.345,54.461,48.833,38.618,31.380,36.783]
+        >>> signal_1 = custom(t, val)
+        
+        * The same custom signal but with linear interpolation
+        >>> signal_2 = custom(t, val, interpolation='linear')
+
+        * Simulate a two-dimensional custom signal
+        >>> from nlcontrol.signals import append
+        >>> custom_signal = append(signal1, signal2)
+        >>> custom_signal.simulation(1, plot=True)
     """
     def callable(t, *args):
         if t < times[0]:
@@ -315,7 +328,13 @@ def custom(times, values):
         else:
             zero_crossings = np.where(np.diff(np.sign(times - t)))[0]
             idx_t = -1 if len(zero_crossings) == 0 else zero_crossings[0]
-            val = np.array([values[idx_t]])
+            if interpolation == 'constant':
+                val = np.array([values[idx_t]])
+            elif interpolation == 'linear':
+                if idx_t == -1:
+                    val = np.array([values[idx_t]])
+                else:
+                    val = np.array([(values[idx_t + 1] - values[idx_t])/(times[idx_t + 1] - times[idx_t]) * (t - times[idx_t]) + values[idx_t]])
         return val
 
     if type(values) != list or type(times) != list:
