@@ -287,7 +287,7 @@ def empty_signal(dim):
 
 def custom(times, values):
     """
-    Creates a BaseSystem class object with a custom signal. The signal can consist of one channel.
+    Creates a BaseSystem class object with a custom signal. The signal can consist of one channel. The samples before the first time instance are set to zero.
 
     Parameters:
     -----------
@@ -310,9 +310,12 @@ def custom(times, values):
         #TODO
     """
     def callable(t, *args):
-        zero_crossings = np.where(np.diff(np.sign(times - t)))[0]
-        idx_t = -1 if len(zero_crossings) == 0 else zero_crossings[0]
-        val = np.array([values[idx_t]])
+        if t < times[0]:
+            val = 0
+        else:
+            zero_crossings = np.where(np.diff(np.sign(times - t)))[0]
+            idx_t = -1 if len(zero_crossings) == 0 else zero_crossings[0]
+            val = np.array([values[idx_t]])
         return val
 
     if type(values) != list or type(times) != list:
