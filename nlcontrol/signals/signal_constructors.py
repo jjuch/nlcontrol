@@ -287,12 +287,14 @@ def empty_signal(dim):
 
 def custom(times, values):
     """
-    Creates a BaseSystem class object with a zero signal. The signal can consist of multiple channels. This makes it possible to connect a zero input to a system if needed.
+    Creates a BaseSystem class object with a custom signal. The signal can consist of one channel.
 
     Parameters:
     -----------
-        dim: int
-            The number of channels.
+        times: list
+            The time vector, which should contain time values in consecutive order. The vector should have the same length as `values'.
+        values: list
+            The vector with the values for the corresponding times. The vector should have the same length as `times'.        
 
     Returns:
     --------
@@ -302,7 +304,10 @@ def custom(times, values):
             inputs : NoneType
                 None
             sys : SystemFromCallable object 
-                with a function 'callable' returning a numpy array with zeros, 0 inputs, and dim outputs.
+                with a function 'callable' returning a numpy array with the custom output values.
+    Examples:
+    ---------
+        #TODO
     """
     def callable(t, *args):
         zero_crossings = np.where(np.diff(np.sign(times - t)))[0]
@@ -316,5 +321,7 @@ def custom(times, values):
     if len(values) != len(times):
         error_text = "[signal.custom] The values and times vectors should have the same length."
         raise ValueError(error_text)
+
+    times = np.array(times)
     system = SystemFromCallable(callable, 0, 1)
     return nlSystems.SystemBase(states=None, inputs=None, system=system, name="input", block_type='signal')
