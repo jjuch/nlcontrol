@@ -12,8 +12,17 @@ Classes:
     * eulaC :
         DynamicController : A general dynamic controller definition.
         EulerLagrangeController : A conversion class build upon the DynamicController class
+
+Functions:
+    * utils : 
+        toControllerBase : Transform a SystemBase object to a ControllerBase object.
 """
 
+from . import controller
 from .controller import ControllerBase
+from . import basic
 from .basic import PID
+from . import eulaC
 from .eulaC import EulerLagrangeController, DynamicController
+from . import utils
+from .utils import toControllerBase

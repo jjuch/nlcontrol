@@ -348,10 +348,10 @@ class EulerLagrange(SystemBase):
             the state equation for each element in self.states
         """
         # \\TODO: Convert self.states to list before slicing, to be compatible with sympy > 1.4
-        minimal_dstates = Matrix(self.states[1::2])
-        dstates = Matrix(self.dstates[0::2])
+        minimal_dstates = Matrix(self.states.tolist()[1::2])
+        dstates = Matrix(self.dstates.tolist()[0::2])
         substitution = dict(zip(dstates, minimal_dstates))
-
+        
         M_inv = self.inertia_matrix.inv()
         states_dotdot = M_inv * self.force_vector \
             - M_inv * self.damping_matrix * minimal_dstates \

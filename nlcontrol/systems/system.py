@@ -249,6 +249,9 @@ class SystemBase(object):
             output_eq = self.system.output_equation
         elif hasattr(self.system, 'output_equation_function'):
             output_eq = self.system.output_equation_function
+        else:
+            error_text = "[SystemBase.output_equation] The system has no output equation. This is not possible."
+            raise AttributeError(error_text)
         if self._additive_output_system is not None:
             if callable(output_eq):
                 t = Symbol('t')
@@ -423,7 +426,7 @@ class SystemBase(object):
                 error_text = "[SystemBase.set_dynamics] All dynamical symbols in the state equation should be included in the object's states and inputs."
                 raise AssertionError(error_text)
 
-            if set(self.inputs) <= find_dynamicsymbols(output_equation):
+            if len(set(self.inputs) & find_dynamicsymbols(output_equation)) != 0:
                 output_without_inputs, output_with_inputs = self.__process_output_equation__(output_equation)
                 # Add a memoryless system with the part of the output equation that contains the inputs
                 self._additive_output_system = MemorylessSystem(

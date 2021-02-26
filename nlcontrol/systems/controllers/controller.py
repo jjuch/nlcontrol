@@ -1,4 +1,5 @@
 from nlcontrol.systems import SystemBase 
+import nlcontrol.systems.controllers.utils as nlctr_ctr_utils
 
 from sympy.matrices import Matrix
 from sympy.tensor.array import Array
@@ -8,6 +9,8 @@ from sympy.core.function import Derivative
 from simupy.systems.symbolic import DynamicalSystem
 
 import numpy as np
+
+__all__ = ["ControllerBase"]
 
 class ControllerBase(SystemBase):
     """
@@ -127,7 +130,8 @@ class ControllerBase(SystemBase):
             >>> print('Output eqs: ', series_sys.system.output_equation)
         """
         series_system = super().series(contr_append)
-        return ControllerBase(inputs=series_system.inputs, states=series_system.states, sys=series_system.system)
+        return nlctr_ctr_utils.toControllerBase(series_system)
+        # return ControllerBase(inputs=series_system.inputs, states=series_system.states, system=series_system.system)
 
     
     def parallel(self, contr_append):
@@ -153,4 +157,5 @@ class ControllerBase(SystemBase):
         >>> print('Output eqs: ', parallel_sys.system.output_equation)
         """
         parallel_system = super().parallel(contr_append)
-        return ControllerBase(inputs=parallel_system.inputs, states=parallel_system.states, sys=parallel_system.system)
+        return nlctr_ctr_utils.toControllerBase(parallel_system)
+        # return ControllerBase(inputs=parallel_system.inputs, states=parallel_system.states, system=parallel_system.system)
