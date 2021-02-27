@@ -917,6 +917,7 @@ class SystemBase(object):
         output_dim = output_system.dim_output
         if output_dim != base_system.system.dim_output:
             error_text = "[SystemBase.__connect_output__] The dimension of the output_system and base_system should be the same."
+            raise AssertionError(error_text)
         import nlcontrol.closedloop.blocks as blocks
         summation = blocks.summation_block(output_dim)
         block_diagram.add_system(summation)

@@ -1,5 +1,5 @@
 from simupy.block_diagram import BlockDiagram
-from simupy.systems.symbolic import DynamicalSystem
+from simupy.systems.symbolic import DynamicalSystem, MemorylessSystem
 from sympy.matrices import Matrix
 from sympy.physics.mechanics import msubs
 from sympy.tensor.array import Array
@@ -300,6 +300,86 @@ class ClosedLoop(object):
         '''
         return self.closed_loop_system.linearize(working_point_states)
 
+    
+    def add_system(self, system: SystemBase, BD=None):
+        if not isinstance(system, SystemBase):
+            error_text = "[ClosedLoop.add_system] The system to be added should be of the type SystemBase or any derived classes."
+            raise TypeError(error_text)
+        if BD is None:
+            BD = BlockDiagram()
+        elif not isinstance(BD, BlockDiagram):
+            error_text = "[ClosedLoop.add_system] The BD should be None or of the type Blockdiagram."
+            raise ValueError(error_text)
+        if system._additive_output_system is not None:
+            output_system = system._additive_output_system
+            base_system = system.system
+            output_dim = output_system.dim_output
+            if output_dim != base_system.dim_output:
+                error_text = "[ClosedLoop.add_system] The dimension of the output_system and base_system should be the same."
+                raise AssertionError(error_text)
+            import nlcontrol.closedloop.blocks as blocks
+            summation = blocks.summation_block(output_dim)
+            BD.add_system(summation)
+            BD.add_system(output_system)
+            BD.add_system(base_system)
+            # Connections to the summation block
+            indices_base_system = [i for i in range(output_dim)]
+            indices_output_system = [output_dim + el for el in indices_base_system]
+            BD.connect(base_system, summation, inputs=indices_base_system)
+            BD.connect(output_system, summation, inputs=indices_output_system)
+        else:
+            BD.add_system(system.system)   
+        return BD
+
+    def connect(self, system1: SystemBase or MemorylessSystem, system2: SystemBase or MemorylessSystem, BD: BlockDiagram):
+        """ In the direction of the flow
+        """
+        if not isinstance(BD, BlockDiagram):
+            error_text = "[ClosedLoop.connect] The BD should be None or of the type Blockdiagram."
+            raise ValueError(error_text)
+        if (not isinstance(system1, (SystemBase, MemorylessSystem))) or (not isinstance(system2, (SystemBase, MemorylessSystem))):
+            error_text = "[ClosedLoop.connect] the systems that need to be connected should be of the type `SystemBase` or SimuPy's `MemorylessSystem`."
+            raise ValueError(error_text)
+        systems_in_BD = list(BD.systems)
+        idx_input2 = []
+        idx_output1 = None
+        # Find indexes of the input subsystems in BD of the systems that need to be connected.
+        if (not isinstance(system2, MemorylessSystem)) and system2._additive_output_system is not None:
+            try:
+                idx_input2.append(systems_in_BD.index(system2.system)) # index of main system
+                idx_input2.append(systems_in_BD.index(system2._additive_output_system)) # index of additive system
+            except ValueError:
+                error_text = "[ClosedLoop.connect] The system is not properly added to the BD. Make sure that you use `ClosedLoop`'s add_system method first."
+                raise ValueError(error_text)
+        else:
+            try:
+                if isinstance(system2, MemorylessSystem):
+                    sys2 = system2
+                else:
+                    sys2 = system2.system
+                idx_input2.append(systems_in_BD.index(sys2)) # index of main system
+            except ValueError:
+                error_text = "[ClosedLoop.connect] The system is not properly added to the BD. Make sure that you use `ClosedLoop`'s add_system method first."
+                raise ValueError(error_text)
+        if (not isinstance(system1, MemorylessSystem)) and system1._additive_output_system is not None:
+            try:
+                idx_output1 = systems_in_BD.index(system1._additive_output_system) - 1 # The summation is added right before the additive system
+            except ValueError:
+                error_text = "[ClosedLoop.connect] The system is not properly added to the BD. Make sure that you use `ClosedLoop`'s add_system method first."
+                raise ValueError(error_text)
+        else:
+            try:
+                if isinstance(system1, MemorylessSystem):
+                    sys1 = system1
+                else:
+                    sys1 = system1.system
+                idx_output1 = systems_in_BD.index(sys1)
+            except ValueError:
+                error_text = "[ClosedLoop.connect] The system is not properly added to the BD. Make sure that you use `ClosedLoop`'s add_system method first."
+                raise ValueError(error_text)
+        for input_idx in idx_input2:
+            BD.connect(systems_in_BD[idx_output1], systems_in_BD[input_idx])
+        return BD
 
     def create_block_diagram(self, forward_systems:list=None, backward_systems:list=None):
         """
@@ -339,50 +419,47 @@ class ClosedLoop(object):
         state_startidx_process = 0
         state_endidx_process = -1
 
-        if (len(forward_systems) is not 0):
-            for forward_system in forward_systems:
-                forward_sys = forward_system.system
-                BD.add_system(forward_sys)
-                output_endidx_process += forward_sys.dim_output
-                state_endidx_process += forward_sys.dim_state
-        output_endidx_process += 1
-        state_endidx_process += 1
-
         output_startidx_controller = output_endidx_process
         output_endidx_controller = output_startidx_controller
         state_startidx_controller = state_endidx_process
         state_endidx_controller = state_startidx_controller
 
+        # Cut loop at on the feedback node and add systems from there backwards to the block diagram
         if (len(backward_systems) is not 0):
             negative_feedback = gain_block(-1, backward_systems[-1].system.dim_output)
             BD.add_system(negative_feedback)
             output_startidx_controller += negative_feedback.dim_output
             output_endidx_controller = output_startidx_controller
-            for backward_system in backward_systems:
-                backward_sys = backward_system.system
-                BD.add_system(backward_sys)
-                output_endidx_controller += backward_sys.dim_output
-                state_endidx_controller += backward_sys.dim_state
+            backward_systems.reverse() # Reverse the list
+            for i, backward_system in enumerate(backward_systems):
+                BD = self.add_system(backward_system, BD=BD)
+                if i == 0:
+                    BD = self.connect(backward_system, negative_feedback, BD)
+                else:
+                    BD = self.connect(backward_system, backward_systems[i - 1], BD)
+                output_endidx_controller += backward_system.system.dim_output
+                state_endidx_controller += backward_system.system.dim_state
         else:
             negative_feedback = gain_block(-1, forward_systems[-1].system.dim_output)
-            BD.add_system(negative_feedback)
+            BD = self.add_system(negative_feedback, BD=BD)
+
+        forward_systems.reverse()
+        if (len(forward_systems) is not 0):
+            for forward_system in forward_systems:
+                BD = self.add_system(forward_system, BD=BD)
+                output_endidx_process += forward_system.system.dim_output
+                state_endidx_process += forward_system.system.dim_state
+        output_endidx_process += 1
+        state_endidx_process += 1
 
         for i in range(len(forward_systems)):
-            if (i == len(forward_systems) - 1):
-                BD.connect(forward_systems[i].system, backward_systems[0].system)
+            if (i == 0): #Last forward system as the forward systems are reversed
+                BD = self.connect(forward_systems[i], backward_systems[-1], BD) # backward systems are also reversed
             else:
-                BD.connect(forward_systems[i].system, forward_systems[i + 1].system)
-        if (len(backward_systems) == 0):
-            BD.add_system(negative_feedback)
-            BD.connect(forward_systems[-1].system, negative_feedback)
-            BD.connect(negative_feedback, forward_systems[0].system)
-        else:
-            for j in range(len(backward_systems)):
-                if (j == len(backward_systems) - 1):
-                    BD.connect(backward_systems[j].system, negative_feedback)
-                    BD.connect(negative_feedback, forward_systems[0].system)
-                else:
-                    BD.connect(backward_systems[j].system, backward_systems[j + 1].system)
+                BD = self.connect(forward_systems[i], forward_systems[i - 1], BD)
+
+        # connect the negative gain to first forward block
+        BD = self.connect(negative_feedback, forward_systems[-1], BD)
         
         indices = {
             'process': {
