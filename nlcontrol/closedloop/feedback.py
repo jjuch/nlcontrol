@@ -180,6 +180,7 @@ class ClosedLoop(object):
         system_dyn = DynamicalSystem(state_equation=Array(state_equations), state=states, output_equation=self._fwd_system.output_equation, input_=inputs)
         return SystemBase(states=Array(states), inputs=inputs, system=system_dyn, name="closed-loop", block_type='closedloop', forward_sys=self.forward_system, backward_sys=self.backward_system)
 
+
     def series(self, sys_append):
         """
         A system is generated which is the result of a serial connection of two systems. The outputs of this object are connected to the inputs of the appended system and a new system is achieved which has the inputs of the current system and the outputs of the appended system. Notice that the dimensions of the output of the current system should be equal to the dimension of the input of the appended system.
@@ -302,6 +303,21 @@ class ClosedLoop(object):
 
     
     def add_system(self, system: SystemBase or MemorylessSystem, BD=None):
+        """
+        Add a system to SimuPy's `BlockDiagram`. It takes into account that the new system can contain an additive system. This will result in the addition of a summation on the output, the base system and the additive system.
+
+        Parameters
+        -----------
+        system : SystemBase or SimuPy.MemorylessSystem
+            The system that needs to be added to a SimuPy.BlockDiagram object.
+        BD : SimuPy.BlockDiagram, optional
+            The block-diagram to which the system needs to be added. If none is given a new one is made.
+
+        Returns
+        --------
+        BD [SimuPy.BlockDiagram] : the block-diagram containing the system.
+        total_output_size [int] : the number of output variables that are added to the BD. With additive systems this will be the output dimension of the summation and the additive system as well.
+        """
         if not isinstance(system, (SystemBase, MemorylessSystem)):
             error_text = "[ClosedLoop.add_system] The system to be added should be of the type SystemBase or any derived classes or a `SimuPy`'s MemorylessSystem."
             raise TypeError(error_text)
@@ -339,8 +355,23 @@ class ClosedLoop(object):
             total_output_size += system.system.dim_output
         return BD, total_output_size
 
+
     def connect(self, system1: SystemBase or MemorylessSystem, system2: SystemBase or MemorylessSystem, BD: BlockDiagram):
-        """ In the direction of the flow
+        """ 
+            Connects two systems contained in a SimuPy's `BlockDiagram`. It takes into account the additive system in the `SystemBase` objects.
+
+            Parameters
+            -----------
+            system1 : SystemBase or SimuPy.MemorylessSystem
+                The system that needs to be connected to system2.
+            system2 : SystemBase or SimuPy.MemorylessSystem
+                The system to which system1 needs to be connected.
+            BD : SimuPy.BlockDiagram
+                The block-diagram which contains system1 and system2.
+
+            Returns
+            --------
+            BD [SimuPy.BlockDiagram] : the block-diagram with the new connection.
         """
         if not isinstance(BD, BlockDiagram):
             error_text = "[ClosedLoop.connect] The BD should be None or of the type Blockdiagram."
@@ -389,6 +420,7 @@ class ClosedLoop(object):
             BD.connect(systems_in_BD[idx_output1], systems_in_BD[input_idx])
         return BD
 
+
     def create_block_diagram(self, forward_systems:list=None, backward_systems:list=None):
         """
         Create a closed loop block diagram with negative feedback. The loop contains a list of SystemBase objects in the forward path and ControllerBase objects in the backward path.
@@ -431,17 +463,6 @@ class ClosedLoop(object):
 
         current_cumm_state = 0
         current_cumm_output = 0
-
-        # TODO: remove
-        # output_startidx_backward = 0
-        # output_endidx_backward = -1
-        # state_startidx_backward = 0
-        # state_endidx_backward = -1
-
-        # output_startidx_forward = output_endidx_backward
-        # output_endidx_forward = output_startidx_backward
-        # state_startidx_forward = state_endidx_backward
-        # state_endidx_forward = state_startidx_backward
 
         # Cut loop at on the feedback node and add systems from there backwards to the block diagram
         if (len(backward_systems) is not 0):
@@ -494,6 +515,7 @@ class ClosedLoop(object):
         # connect the negative gain to first forward block
         BD = self.connect(negative_feedback, forward_systems[-1], BD)
         
+        # Pack indices
         indices = {
             'process': {
                 'output': output_forward_slices,
@@ -576,16 +598,7 @@ class ClosedLoop(object):
         y_c_idx = self.indices['controller']['output']
         x_c_idx = self.indices['controller']['state']
 
-        # TODO: remove
-        # y_p = res.y[:, y_p_idx[0]] if len(y_p_idx) == 1\
-        #     else res.y[:, slice(*y_p_idx)]
-        # x_p = None if len(x_p_idx) == 0\
-        #     else res.x[:, slice(*x_p_idx)]
-        # y_c = res.y[:, y_c_idx[0]] if len(y_c_idx) == 1\
-        #     else res.y[:, slice(*y_c_idx)]
-        # x_c = None if len(x_c_idx) == 0\
-        #     else res.x[:, x_c_idx[0]] if len(x_c_idx) == 1\
-        #     else res.x[:, slice(*x_c_idx)]
+        # slice results into correct vectors
         y_p = self.__slice_simulation_results__(y_p_idx, res.y)
         x_p = self.__slice_simulation_results__(x_p_idx, res.x)
         y_c = self.__slice_simulation_results__(y_c_idx, res.y)
@@ -614,7 +627,24 @@ class ClosedLoop(object):
 
         return res.t, (x_p, y_p, x_c, y_c)
     
+
     def __slice_simulation_results__(self, slice_indices: list, data, invert=True):
+        """
+        A helper function to split a multi-dimensional data set with a list of slices. The invert boolean indicates whether each slice is prepended or appended to the resulting data matrix.
+
+        Parameters
+        -----------
+        slice_indices : list
+            a list containing slices.
+        data : ndarray
+            a data set which needs to be sliced.
+        invert : boolean
+            indicates whether each new slice needs to prepended or appended to the resulting matrix.
+
+        Returns
+        --------
+        ndarray or None : the sliced dataset.        
+        """
         result = None
         if len(slice_indices) != 0:
             for sl in slice_indices:
