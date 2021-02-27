@@ -301,16 +301,17 @@ class ClosedLoop(object):
         return self.closed_loop_system.linearize(working_point_states)
 
     
-    def add_system(self, system: SystemBase, BD=None):
-        if not isinstance(system, SystemBase):
-            error_text = "[ClosedLoop.add_system] The system to be added should be of the type SystemBase or any derived classes."
+    def add_system(self, system: SystemBase or MemorylessSystem, BD=None):
+        if not isinstance(system, (SystemBase, MemorylessSystem)):
+            error_text = "[ClosedLoop.add_system] The system to be added should be of the type SystemBase or any derived classes or a `SimuPy`'s MemorylessSystem."
             raise TypeError(error_text)
         if BD is None:
             BD = BlockDiagram()
         elif not isinstance(BD, BlockDiagram):
             error_text = "[ClosedLoop.add_system] The BD should be None or of the type Blockdiagram."
-            raise ValueError(error_text)
-        if system._additive_output_system is not None:
+            raise TypeError(error_text)
+        total_output_size = 0
+        if (not isinstance(system, MemorylessSystem)) and (system._additive_output_system is not None):
             output_system = system._additive_output_system
             base_system = system.system
             output_dim = output_system.dim_output
@@ -320,30 +321,37 @@ class ClosedLoop(object):
             import nlcontrol.closedloop.blocks as blocks
             summation = blocks.summation_block(output_dim)
             BD.add_system(summation)
+            total_output_size += summation.dim_output
             BD.add_system(output_system)
+            total_output_size += output_system.dim_output
             BD.add_system(base_system)
+            total_output_size += base_system.dim_output
             # Connections to the summation block
             indices_base_system = [i for i in range(output_dim)]
             indices_output_system = [output_dim + el for el in indices_base_system]
             BD.connect(base_system, summation, inputs=indices_base_system)
             BD.connect(output_system, summation, inputs=indices_output_system)
+        elif isinstance(system, MemorylessSystem):
+            BD.add_system(system)
+            total_output_size += system.dim_output
         else:
-            BD.add_system(system.system)   
-        return BD
+            BD.add_system(system.system)
+            total_output_size += system.system.dim_output
+        return BD, total_output_size
 
     def connect(self, system1: SystemBase or MemorylessSystem, system2: SystemBase or MemorylessSystem, BD: BlockDiagram):
         """ In the direction of the flow
         """
         if not isinstance(BD, BlockDiagram):
             error_text = "[ClosedLoop.connect] The BD should be None or of the type Blockdiagram."
-            raise ValueError(error_text)
+            raise TypeError(error_text)
         if (not isinstance(system1, (SystemBase, MemorylessSystem))) or (not isinstance(system2, (SystemBase, MemorylessSystem))):
             error_text = "[ClosedLoop.connect] the systems that need to be connected should be of the type `SystemBase` or SimuPy's `MemorylessSystem`."
-            raise ValueError(error_text)
+            raise TypeError(error_text)
         systems_in_BD = list(BD.systems)
         idx_input2 = []
         idx_output1 = None
-        # Find indexes of the input subsystems in BD of the systems that need to be connected.
+        # Find indices of the input subsystems in BD of the systems that need to be connected.
         if (not isinstance(system2, MemorylessSystem)) and system2._additive_output_system is not None:
             try:
                 idx_input2.append(systems_in_BD.index(system2.system)) # index of main system
@@ -413,44 +421,69 @@ class ClosedLoop(object):
                 backward_systems = [self._bwd_system]
 
         BD = BlockDiagram()
-        # Order of adding systems is important. The negative feedback_block needs to be added before the backward systems. This can be seen from simupy.block_diagram.BlockDiagram.output_equation_function(). Possibly only for stateless systems important. #TODO: check whether there is a problem with list of backward systems.
-        output_startidx_process = 0
-        output_endidx_process = -1
-        state_startidx_process = 0
-        state_endidx_process = -1
+        # Order of adding systems is important. The trick is to cut the loop where the feedback ends and work from that point back to the beginning. This can be seen from simupy.block_diagram.BlockDiagram.output_equation_function(). Possibly only for stateless systems important.
 
-        output_startidx_controller = output_endidx_process
-        output_endidx_controller = output_startidx_controller
-        state_startidx_controller = state_endidx_process
-        state_endidx_controller = state_startidx_controller
+        # Keep slices per block to find the proper indices.
+        states_forward_slices = []
+        states_backward_slices = []
+        output_forward_slices = []
+        output_backward_slices = []
+
+        current_cumm_state = 0
+        current_cumm_output = 0
+
+        # TODO: remove
+        # output_startidx_backward = 0
+        # output_endidx_backward = -1
+        # state_startidx_backward = 0
+        # state_endidx_backward = -1
+
+        # output_startidx_forward = output_endidx_backward
+        # output_endidx_forward = output_startidx_backward
+        # state_startidx_forward = state_endidx_backward
+        # state_endidx_forward = state_startidx_backward
 
         # Cut loop at on the feedback node and add systems from there backwards to the block diagram
         if (len(backward_systems) is not 0):
             negative_feedback = gain_block(-1, backward_systems[-1].system.dim_output)
-            BD.add_system(negative_feedback)
-            output_startidx_controller += negative_feedback.dim_output
-            output_endidx_controller = output_startidx_controller
+            BD, _ = self.add_system(negative_feedback, BD=BD)
+            current_cumm_output += negative_feedback.dim_output
+            
+            # Add each backward system to BD
             backward_systems.reverse() # Reverse the list
             for i, backward_system in enumerate(backward_systems):
-                BD = self.add_system(backward_system, BD=BD)
+                BD, system_output_size = self.add_system(backward_system, BD=BD)
+                # Update index slices #TODO : slices for systems with additive systems are not correct
+                system_state_slice = slice(current_cumm_state, current_cumm_state + backward_system.system.dim_state)
+                system_output_slice = slice(current_cumm_output, current_cumm_output + backward_system.system.dim_output)
+                states_backward_slices.append(system_state_slice)
+                output_backward_slices.append(system_output_slice)
+                current_cumm_state = current_cumm_state + backward_system.system.dim_state
+                current_cumm_output = current_cumm_output + system_output_size
+
+                # Connect systems
                 if i == 0:
                     BD = self.connect(backward_system, negative_feedback, BD)
                 else:
                     BD = self.connect(backward_system, backward_systems[i - 1], BD)
-                output_endidx_controller += backward_system.system.dim_output
-                state_endidx_controller += backward_system.system.dim_state
         else:
+            # No blocks in the backward path
             negative_feedback = gain_block(-1, forward_systems[-1].system.dim_output)
-            BD = self.add_system(negative_feedback, BD=BD)
+            BD, __import__ = self.add_system(negative_feedback, BD=BD)
+            current_cumm_output += negative_feedback.dim_output
 
+        # Add each backward system to BD
         forward_systems.reverse()
         if (len(forward_systems) is not 0):
             for forward_system in forward_systems:
-                BD = self.add_system(forward_system, BD=BD)
-                output_endidx_process += forward_system.system.dim_output
-                state_endidx_process += forward_system.system.dim_state
-        output_endidx_process += 1
-        state_endidx_process += 1
+                BD, system_output_size = self.add_system(forward_system, BD=BD)
+                # Update index slices
+                system_state_slice = slice(current_cumm_state, current_cumm_state + forward_system.system.dim_state)
+                system_output_slice = slice(current_cumm_output, current_cumm_output + forward_system.system.dim_output)
+                states_forward_slices.append(system_state_slice)
+                output_forward_slices.append(system_output_slice)
+                current_cumm_state = current_cumm_state + forward_system.system.dim_state
+                current_cumm_output = current_cumm_output + system_output_size
 
         for i in range(len(forward_systems)):
             if (i == 0): #Last forward system as the forward systems are reversed
@@ -463,18 +496,12 @@ class ClosedLoop(object):
         
         indices = {
             'process': {
-                'output': [output_endidx_process] if output_startidx_process == output_endidx_process\
-                    else [output_startidx_process, output_endidx_process],
-                'state': None if state_endidx_process is 0\
-                    else[state_endidx_process] if state_startidx_process == state_endidx_process\
-                    else [state_startidx_process, state_endidx_process]
+                'output': output_forward_slices,
+                'state': states_forward_slices
             },
             'controller': {
-                'output': [output_endidx_controller] if output_startidx_controller == output_endidx_controller\
-                    else [output_startidx_controller, output_endidx_controller],
-                'state': None if state_endidx_controller == state_endidx_process\
-                    else[state_endidx_controller] if state_startidx_controller == state_endidx_controller\
-                    else [state_startidx_controller, state_endidx_controller]
+                'output': output_backward_slices,
+                'state': states_backward_slices
             }
         }
         return BD, indices
@@ -548,18 +575,22 @@ class ClosedLoop(object):
         x_p_idx = self.indices['process']['state']
         y_c_idx = self.indices['controller']['output']
         x_c_idx = self.indices['controller']['state']
-        y_p = res.y[:, y_p_idx[0]] if len(y_p_idx) == 1\
-            else res.y[:, slice(*y_p_idx)]
-        x_p = None if x_p_idx is None\
-            else res.x[:, x_p_idx[0]] if len(x_p_idx) == 1\
-            else res.x[:, slice(*x_p_idx)]
-        y_c = res.y[:, y_c_idx[0]] if len(y_c_idx) == 1\
-            else res.y[:, slice(*y_c_idx)]
-        x_c = None if x_c_idx is None\
-            else res.x[:, x_c_idx[0]] if len(x_c_idx) == 1\
-            else res.x[:, slice(*x_c_idx)]
 
-    
+        # TODO: remove
+        # y_p = res.y[:, y_p_idx[0]] if len(y_p_idx) == 1\
+        #     else res.y[:, slice(*y_p_idx)]
+        # x_p = None if len(x_p_idx) == 0\
+        #     else res.x[:, slice(*x_p_idx)]
+        # y_c = res.y[:, y_c_idx[0]] if len(y_c_idx) == 1\
+        #     else res.y[:, slice(*y_c_idx)]
+        # x_c = None if len(x_c_idx) == 0\
+        #     else res.x[:, x_c_idx[0]] if len(x_c_idx) == 1\
+        #     else res.x[:, slice(*x_c_idx)]
+        y_p = self.__slice_simulation_results__(y_p_idx, res.y)
+        x_p = self.__slice_simulation_results__(x_p_idx, res.x)
+        y_c = self.__slice_simulation_results__(y_c_idx, res.y)
+        x_c = self.__slice_simulation_results__(x_c_idx, res.x)
+        
         if plot:
             plt.figure()
             plt.subplot(1, 2, 1)
@@ -582,6 +613,21 @@ class ClosedLoop(object):
             plt.show()
 
         return res.t, (x_p, y_p, x_c, y_c)
+    
+    def __slice_simulation_results__(self, slice_indices: list, data, invert=True):
+        result = None
+        if len(slice_indices) != 0:
+            for sl in slice_indices:
+                data_slice = data[:, sl]
+                if result is None:
+                    # initialize result before using concatenate function
+                    result = data_slice
+                else:
+                    if invert:
+                        result = np.concatenate((data_slice, result), axis=1)
+                    else:
+                        result = np.concatenate((result, data_slice), axis=1)
+        return result
 
 
     def show(self, *args, **kwargs):
