@@ -175,4 +175,5 @@ class PID(ControllerBase):
             # PID-controller
             inputs = [val for pair in zip(self.inputs, self.iinputs, self.dinputs) for val in pair]
             output_equation = Array([sum(x) for x in zip(self.P_action, self.I_action, self.D_action)])
+        self.inputs = Array(inputs)
         self.system = MemorylessSystem(input_=inputs, output_equation=output_equation)
