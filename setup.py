@@ -46,6 +46,7 @@ setup(
         'sympy==1.4.0',
         'control>=0.8.1',
         'simupy>=1.0.0',
-        'matplotlib>=3.1.1'
+        'matplotlib>=3.1.1',
+        'bokeh>=2.3.0'
     ]
 )
