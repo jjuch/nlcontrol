@@ -172,7 +172,7 @@ class ClosedLoop(object):
         '''
         states, state_equations = self.__get_states__()
         # Create input vector
-        input_dim = self.backward_system.system.dim_output
+        input_dim = self.forward_system.system.dim_input
         inputs = SystemBase.__format_dynamic_vectors__(None, 'r0:{}'.format(input_dim))
 
         # Define a simupy DynamicalSystem
@@ -256,7 +256,10 @@ class ClosedLoop(object):
                     state_equations.extend(self._bwd_system.state_equation)
         else:
             substitutions_derivatives = dict()
-            unprocessed_substitutions_system = zip(self._fwd_system.inputs, (-1) * self._bwd_system.output_equation)
+            if self._bwd_system is None:
+                unprocessed_substitutions_system = zip(self._fwd_system.inputs, (-1) * self._fwd_system.output_equation)
+            else:
+                unprocessed_substitutions_system = zip(self._fwd_system.inputs, (-1) * self._bwd_system.output_equation)
 
             if self._fwd_system.states is not None:
                 # Remove Derivative(., 't') from controller states and substitutions_system
@@ -270,7 +273,7 @@ class ClosedLoop(object):
                 state_equations.extend([msubs(state_eq, substitutions_derivatives, substitutions_system)\
                     for state_eq in self._fwd_system.state_equation])                
                  
-            if self._bwd_system.states is not None:
+            if self._bwd_system is not None and self._bwd_system.states is not None:
                 states.extend(self._bwd_system.states)
                 controller_state_eq = msubs(self._bwd_system.state_equation, substitutions_derivatives)
                 state_equations.extend(controller_state_eq)     
@@ -464,7 +467,7 @@ class ClosedLoop(object):
         current_cumm_output = 0
 
         # Cut loop at on the feedback node and add systems from there backwards to the block diagram
-        if (len(backward_systems) is not 0):
+        if (backward_systems[0] is not None):
             negative_feedback = gain_block(-1, backward_systems[-1].system.dim_output)
             BD, _ = self.add_system(negative_feedback, BD=BD)
             current_cumm_output += negative_feedback.dim_output
@@ -494,7 +497,7 @@ class ClosedLoop(object):
 
         # Add each backward system to BD
         forward_systems.reverse()
-        if (len(forward_systems) is not 0):
+        if (forward_systems[0] is not None):
             for forward_system in forward_systems:
                 BD, system_output_size = self.add_system(forward_system, BD=BD)
                 # Update index slices
@@ -507,7 +510,10 @@ class ClosedLoop(object):
 
         for i in range(len(forward_systems)):
             if (i == 0): #Last forward system as the forward systems are reversed
-                BD = self.connect(forward_systems[i], backward_systems[-1], BD) # backward systems are also reversed
+                if backward_systems[0] is not None:
+                    BD = self.connect(forward_systems[i], backward_systems[-1], BD) # backward systems are also reversed
+                else:
+                    BD = self.connect(forward_systems[i], negative_feedback, BD)
             else:
                 BD = self.connect(forward_systems[i], forward_systems[i - 1], BD)
 
