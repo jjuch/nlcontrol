@@ -169,17 +169,28 @@ class ClosedLoop(object):
         --------
         system : SystemBase
             A Systembase object of the closed-loop system.
+
+        TODO: not tested yet
         '''
         # Create input vector
         input_dim = self.forward_system.system.dim_input
         inputs = SystemBase.__format_dynamic_vectors__(None, 'r0:{}'.format(input_dim))
         # Obtain new state equations including inputs, TODO
-        states, state_equations = self.__get_states__(inputs)
-        
+        states, state_equations, output_equations = self.__get_dynamic_equations__(inputs)
+    
 
         # Define a simupy DynamicalSystem
-        system_dyn = DynamicalSystem(state_equation=Array(state_equations), state=states, output_equation=self._fwd_system.output_equation, input_=inputs)
-        return SystemBase(states=Array(states), inputs=inputs, system=system_dyn, name="closed-loop", block_type='closedloop', forward_sys=self.forward_system, backward_sys=self.backward_system)
+        sys = SystemBase(
+            states=Array(states), 
+            inputs = inputs, 
+            name="closed-loop", 
+            block_type='closedloop', 
+            forward_sys=self.forward_system, 
+            backward_sys=self.backward_system)
+
+        sys.set_dynamics(output_equations, state_equation=state_equations)
+        return sys
+        
 
 
     def series(self, sys_append):
@@ -234,7 +245,7 @@ class ClosedLoop(object):
 
 
 
-    def __get_states__(self, inputs=None):
+    def __get_dynamic_equations__(self, inputs):
         '''
         Contcatenate the states vector of the system and the controller.
 
@@ -251,6 +262,8 @@ class ClosedLoop(object):
         '''
         states = []
         state_equations = []
+
+        fwd_output_equations, bwd_output_equations = self.__get_output_equations__(inputs)
         
         if self._fwd_system is None:
             if self._bwd_system is None:
@@ -259,19 +272,28 @@ class ClosedLoop(object):
             else:
                 if self._bwd_system.states is not None:
                     states.extend(self._bwd_system.states)
-                    state_equations.extend(self._bwd_system.state_equation)
+
+                    unprocessed_substit_bwd_system = zip(self._bwd_system.inputs, input - bwd_output_equations)
+                    minimal_dstates = self._bwd_system.states[1::2]
+                    dstates = self._bwd_system.dstates[0::2]
+                    substitutions_derivatives = dict(zip(dstates, minimal_dstates))
+                    substitutions_system = dict([(k, msubs(v, substitutions_derivatives))\
+                    for k, v in unprocessed_substit_bwd_system])
+
+                    bwd_state_eq = [msubs(state_eq, substitutions_derivatives, substitutions_system)\
+                    for state_eq in self._bwd_system.state_equation]
+
+                    state_equations.extend(bwd_state_eq)
         else:
             substitutions_derivatives = dict()
             if self._bwd_system is None:
                 #unprocessed_substitutions_system = zip(self._fwd_system.inputs, (-1) * self._fwd_system.output_equation)
-                unprocessed_substitutions_system = zip(self._fwd_system.inputs, inputs - self._fwd_system.output_equation)
+                unprocessed_substitutions_system = zip(self._fwd_system.inputs, inputs - fwd_output_equations)
             else:
                 #unprocessed_substitutions_system = zip(self._fwd_system.inputs, (-1) * self._bwd_system.output_equation)
-                unprocessed_substitutions_system = zip(self._fwd_system.inputs, inputs - self._bwd_system.output_equation)
+                unprocessed_substitutions_system = zip(self._fwd_system.inputs, inputs - bwd_output_equations)
 
             if self._fwd_system.states is not None:
-                print("STATES   ",self._fwd_system.states)
-                print("DSTATES   ",self._fwd_system.dstates)
                 # Remove Derivative(., 't') from controller states and substitutions_system
                 minimal_dstates = self._fwd_system.states[1::2]
                 dstates = self._fwd_system.dstates[0::2]
@@ -285,7 +307,7 @@ class ClosedLoop(object):
                  
             if self._bwd_system is not None and self._bwd_system.states is not None:
                 states.extend(self._bwd_system.states)
-                unprocessed_substit_bwd_system = zip(self._bwd_system.inputs, self._fwd_system.output_equation)
+                unprocessed_substit_bwd_system = zip(self._bwd_system.inputs, fwd_output_equations)
                 
                 minimal_dstates = self._bwd_system.states[1::2]
                 dstates = self._bwd_system.dstates[0::2]
@@ -297,8 +319,64 @@ class ClosedLoop(object):
                     for state_eq in self._bwd_system.state_equation]
 
                 state_equations.extend(controller_state_eq)     
-        return states, state_equations
+        return states, state_equations, fwd_output_equations
     
+    def __get_output_equations__(self, inputs):
+        fwd_output_equations = []
+        bwd_output_equations = []
+        if self._fwd_system is None:
+            if self._bwd_system is None:
+                error_text = '[ClosedLoop.__get_output__] Both controller and system are None. One of them should at least contain a system.'
+                raise AssertionError(error_text)
+            else:
+                unprocessed_substitutions_system = zip(self._bwd_system.inputs, inputs - self._bwd_system.output_equation)
+                minimal_dstates = self._bwd_system.states[1::2]
+                dstates = self._bwd_system.dstates[0::2]
+                substitutions_derivatives = dict(zip(dstates, minimal_dstates))
+                substitutions_system = dict([(k, msubs(v, substitutions_derivatives))\
+                    for k, v in unprocessed_substitutions_system])
+
+                bwd_output_equations.extend([msubs(output_eq, substitutions_derivatives, substitutions_system)\
+                    for output_eq in self._bwd_system.output_equation])
+        
+        else:
+            if self._bwd_system is None:
+                if self._fwd_system._additive_output_system is not None:
+                    error_text = "[ClosedLoop.__get_output__] Unable to create closed-form output equations when the output equation of the forward system contains an input. It is possible to simulate this case with the 'simulation' function of the ClosedLoop object."
+                    raise AssertionError(error_text)
+                else:
+                    unprocessed_fwd_substitution_system = zip(self._fwd_system.inputs, inputs - self._fwd_system.output_equation)
+                    print(unprocessed_fwd_substitution_system)
+                    minimal_dstates = self._fwd_system.states[1::2]
+                    dstates = self._fwd_system.dstates[0::2]
+                    substitutions_derivatives = dict(zip(dstates, minimal_dstates))
+                    substitutions_system = dict([(k, msubs(v, substitutions_derivatives))\
+                        for k, v in unprocessed_fwd_substitution_system])
+                
+                fwd_output_equations.extend([msubs(output_eq, substitutions_derivatives, substitutions_system)\
+                    for output_eq in self._fwd_system.output_equation])
+            
+            else:
+                if self._bwd_system._additive_output_system is not None:
+                    error_text = "[ClosedLoop.__get_output__] Unable to create closed-form output equations when the output equation of the backward system contains an input. It is possible to simulate this case with the 'simulation' function of the ClosedLoop object."
+                    raise AssertionError(error_text)
+
+                else:
+                    unprocessed_fwd_substitution_system = zip(self._fwd_system.inputs, inputs - self._bwd_system.output_equation)
+                    minimal_dstates = self._fwd_system.states[1::2]
+                    dstates = self._fwd_system.dstates[0::2]
+                    substitutions_derivatives = dict(zip(dstates, minimal_dstates))
+                    substitutions_system = dict([(k, msubs(v, substitutions_derivatives))\
+                        for k, v in unprocessed_fwd_substitution_system])
+                
+                    fwd_output_equations.extend([msubs(output_eq, substitutions_derivatives, substitutions_system)\
+                        for output_eq in self._fwd_system.output_equation])
+                    bwd_output_equations.extend(self._bwd_system.output_equation)
+        print(fwd_output_equations, "---", bwd_output_equations)
+        return Array(fwd_output_equations), Array(bwd_output_equations)
+
+
+
 
     def linearize(self, working_point_states):
         '''
