@@ -46,7 +46,6 @@ class ClosedLoop(object):
     ---------
     * Create a closed-loop object of SystemBase object 'sys', which uses the Euler-Lagrange formulation, and ControllerBase object 'contr' containing a PID and a DynamicController object in parallel.
         >>> from nlcontrol import PID, DynamicController, EulerLagrange
-        >>> $
         >>> # Define the system:
         >>> states = 'x1, x2'
         >>> inputs = 'u1, u2'
