@@ -171,10 +171,12 @@ class ClosedLoop(object):
         system : SystemBase
             A Systembase object of the closed-loop system.
         '''
-        states, state_equations = self.__get_states__()
         # Create input vector
         input_dim = self.forward_system.system.dim_input
         inputs = SystemBase.__format_dynamic_vectors__(None, 'r0:{}'.format(input_dim))
+        # Obtain new state equations including inputs, TODO
+        states, state_equations = self.__get_states__(inputs)
+        
 
         # Define a simupy DynamicalSystem
         system_dyn = DynamicalSystem(state_equation=Array(state_equations), state=states, output_equation=self._fwd_system.output_equation, input_=inputs)
@@ -233,9 +235,13 @@ class ClosedLoop(object):
 
 
 
-    def __get_states__(self):
+    def __get_states__(self, inputs=None):
         '''
         Contcatenate the states vector of the system and the controller.
+
+        Parameters
+        -----------
+        inputs : TODO
 
         Returns
         --------
@@ -258,11 +264,15 @@ class ClosedLoop(object):
         else:
             substitutions_derivatives = dict()
             if self._bwd_system is None:
-                unprocessed_substitutions_system = zip(self._fwd_system.inputs, (-1) * self._fwd_system.output_equation)
+                #unprocessed_substitutions_system = zip(self._fwd_system.inputs, (-1) * self._fwd_system.output_equation)
+                unprocessed_substitutions_system = zip(self._fwd_system.inputs, inputs - self._fwd_system.output_equation)
             else:
-                unprocessed_substitutions_system = zip(self._fwd_system.inputs, (-1) * self._bwd_system.output_equation)
+                #unprocessed_substitutions_system = zip(self._fwd_system.inputs, (-1) * self._bwd_system.output_equation)
+                unprocessed_substitutions_system = zip(self._fwd_system.inputs, inputs - self._bwd_system.output_equation)
 
             if self._fwd_system.states is not None:
+                print("STATES   ",self._fwd_system.states)
+                print("DSTATES   ",self._fwd_system.dstates)
                 # Remove Derivative(., 't') from controller states and substitutions_system
                 minimal_dstates = self._fwd_system.states[1::2]
                 dstates = self._fwd_system.dstates[0::2]
@@ -276,7 +286,17 @@ class ClosedLoop(object):
                  
             if self._bwd_system is not None and self._bwd_system.states is not None:
                 states.extend(self._bwd_system.states)
-                controller_state_eq = msubs(self._bwd_system.state_equation, substitutions_derivatives)
+                unprocessed_substit_bwd_system = zip(self._bwd_system.inputs, self._fwd_system.output_equation)
+                
+                minimal_dstates = self._bwd_system.states[1::2]
+                dstates = self._bwd_system.dstates[0::2]
+                substitutions_derivatives = dict(zip(dstates, minimal_dstates))
+                substitutions_system = dict([(k, msubs(v, substitutions_derivatives))\
+                    for k, v in unprocessed_substit_bwd_system])
+                
+                controller_state_eq = [msubs(state_eq, substitutions_derivatives, substitutions_system)\
+                    for state_eq in self._bwd_system.state_equation]
+
                 state_equations.extend(controller_state_eq)     
         return states, state_equations
     
