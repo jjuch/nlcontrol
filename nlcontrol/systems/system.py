@@ -411,6 +411,7 @@ class SystemBase(object):
         if self.states is not None:
             dynamic_states_inputs.update(self.states)
         if not (find_dynamicsymbols(output_equation) <= dynamic_states_inputs):
+            print(output_equation, "\n-> ", dynamic_states_inputs)
             error_text = "[SystemBase.set_dynamics] All dynamical symbols in the output equation should be included in the object's states and inputs."
             raise AssertionError(error_text)
         
