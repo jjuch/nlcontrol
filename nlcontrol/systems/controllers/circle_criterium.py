@@ -11,6 +11,8 @@ from simupy.systems.symbolic import DynamicalSystem
 import numpy as np
 import itertools
 
+__all__ = ["DynamicController", "EL_circ"]
+
 class DynamicController(ControllerBase):
     """
     DynamicController(states=None, inputs=None, sys=None, name="EL controller")
@@ -78,12 +80,16 @@ class DynamicController(ControllerBase):
         if 'inputs' not in kwargs.keys():
             error_text = "[nlcontrol.systems.DynamicController] An 'inputs=' keyword is necessary."
             raise AssertionError(error_text)
+        else:
+            inputs = kwargs['inputs']
         if 'states' not in kwargs.keys():
             error_text = "[nlcontrol.systems.DynamicController] A 'states=' keyword is necessary."
             raise AssertionError(error_text)
+        else:
+            states = kwargs['states']
         if 'name' not in kwargs.keys():
             kwargs['name'] = "EL controller"
-        super().__init__(*args, **kwargs)
+        super().__init__(states, inputs, *args, **kwargs)
         
         self.minimal_inputs = self.inputs
         self.inputs = Array([val for pair in zip(self.inputs, self.dinputs) for val in pair])
@@ -350,11 +356,9 @@ class DynamicController(ControllerBase):
             return True
         
 
-class EulerLagrangeController(DynamicController):
+class EL_circ(DynamicController):
     """
-    EulerLagrangeController(D0, C0, K0, C1, f, NA, NB, inputs, nonlinearity_type='stiffness')
-
-    The EulerLagrangeController object is based on the DynamicController class. The control equation is:
+    The EL_circ creates an Euler-Lagrange controller that is based on on the DynamicController class. It's stability and structure follows from the proof in [1] and is based on the circle criterium. This does not return a general Euler-Lagrange controller, but rather a special case. The control equation is:
 
     .. math::
         D0.p'' + C0.p' + K0.p + C1.f(C1^T.p) + N0.w' = 0

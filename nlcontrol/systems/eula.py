@@ -307,9 +307,9 @@ class EulerLagrange(SystemBase):
             Stiffness matrix. Size: n x 1
         F : array-like
             Input forces/torque, non-square matrix. Size: n x 1
-        Qrnc : array-like
+        Qrnc : array-like, optional
             Real non-conservative forces, non-square matrix. Size: n x 1
-        g : array-like
+        g : array-like, optional
             Output equation. Size: p x 1
 
         Examples:

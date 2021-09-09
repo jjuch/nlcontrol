@@ -1,6 +1,8 @@
 from nlcontrol.systems.controllers import ControllerBase
+from nlcontrol.systems import EulerLagrange
 
 from sympy.tensor.array import Array
+from sympy.matrices import eye
 from simupy.systems.symbolic import MemorylessSystem
 
 class PID(ControllerBase):
@@ -63,17 +65,20 @@ class PID(ControllerBase):
         if 'inputs' not in kwargs.keys():
             error_text = "[nlcontrol.systems.PID] An 'inputs=' keyword is necessary."
             raise AssertionError(error_text)
+        else:
+            inputs = kwargs['inputs']
         if 'name' not in kwargs.keys():
             kwargs['name'] = "PID"
-        super().__init__(*args, **kwargs)
+        states = None
+        super().__init__(states, inputs, *args, **kwargs)
 
         self._ksi0 = None # potential energy shaper
         self._psi0 = None # damping injection
         self._chi0 = None # integral action
 
         if len(args) not in (0, 1, 3):
-            error_text = '[nlcontrol.systems.PID] the argument list should contain a P-action vector, or a P-action, I-action, and D-action vector. In the latter case, if I- or D-action is not necessary replace with None.'
-            raise ValueError(error_text)
+            error_text = '[PID] the argument list should contain a P-action vector, or a P-action, I-action, and D-action vector. In the latter case, if I- or D-action is not necessary replace with None.'
+            raise AttributeError(error_text)
 
         if len(args) == 3:
             self.define_PID(*args)
@@ -177,3 +182,124 @@ class PID(ControllerBase):
             output_equation = Array([sum(x) for x in zip(self.P_action, self.I_action, self.D_action)])
         self.inputs = Array(inputs)
         self.system = MemorylessSystem(input_=inputs, output_equation=output_equation)
+
+
+class EulerLagrangeController(ControllerBase, EulerLagrange):
+    """
+    EulerLagrangeController(states, inputs, diff_inputs=False, name="EL controller")
+    EulerLagrangeController(M, C, K, F, inputs, Qrnc=None, N=None, g=None, diff_inputs=False, name="EL controller")
+
+    A class that defines a controller of the general Euler-Lagrange type. The formalism is given by:
+
+    .. math::
+        M(p).p'' + C(p, p').p' + K(p) + Qrnc(p') = F(u, u')
+
+    If Qrnc is specified in the initiator the non-conservative force vector is Qrnc(N*p') with N a vector with constants. If none Nrnc is an identity matrix.
+
+     Here, p represents a minimal state:
+
+    .. math::
+        p = [p_1, p_2, ...]^T
+
+    the apostrophe represents a time derivative, :math:`.^T` is the transpose of a matrix, and u is the input vector:
+
+    .. math::
+        u = [u_1, u_2, ...]^T
+    
+    If diff_inputs is True the input vector is
+
+    .. math::
+        u^{*} = [u_1, u_2, ..., du_1, du_2, ...]
+    
+    If diff_inputs is False the input vector is
+
+    .. math::
+        u^{*} = u
+
+    A ControllerBase object uses a state equation function of the form:
+
+    .. math::
+        p' = h(p, u^{*})
+
+    However, as system contains second time derivatives of the state, an extended state p* is necessary, containing the minimized states and its first time derivatives:
+
+    .. math::
+        p^{*} = [p_1, p_2, p_1', p_2', ...]
+
+    which makes it possible to adhere to the ControllerBase formulation:
+
+    .. math::
+        p^{*'} = f(p^{*}, u^{*})
+
+    The output is by default the state vector
+    
+    .. math::
+        y = p^{*}
+
+    A custom output equation can be chosen:
+
+    ..math::
+        y = g(p^{*}, u^{*})
+
+    Parameters
+    -----------
+    M : array-like or float
+        Inertia matrix, the matrix is positive definite symmetric. Size: n x n
+    C : array-like or float
+        Coriolis and matrix. Size: m x n
+    K : array-like or float
+        Stiffness matrix. Size: n x 1
+    F : array-like
+        Input forces/torque, non-square matrix. Size: n x 1
+    inputs : string or array-like
+        if `inputs` is a string, it is a comma-separated listing of the input names. If `inputs` is array-like it contains the inputs as sympy's dynamic symbols.
+    Qrnc : array-like, optional
+        Real non-conservative forces, non-square matrix. If it contains a lambda function element, the argument is replaced by  Size: n x 1
+    N : array-like, optional
+        non-conservative forces argument is N*p'. Size: n x n
+    g : array-like, optional
+        Output equation. Size: p x 1
+    states : string or array-like
+        if `states` is a string, it is a comma-separated listing of the state names. If `states` is array-like it contains the states as sympy's dynamic symbols. If no states argument is given, a default state vector with name 'p' is generated, with size n.
+    diff_inputs : boolean, optional
+        if true the input vector is expanded with the input derivatives. This also means that the input's dimension is doubled.
+    name : string
+        give the system a custom name which will be shown in the block scheme, default: 'EL controller'.
+    """
+    
+    def __init__(self, *args, **kwargs):
+        if len(args) not in (2, 5):
+            error_text = '[EulerLagrangeController] The arguments should be of size 2, specifying the states and the inputs, or size 5, specifying the different matrices of the Euler-Lagrange formalism (see docs).'
+            raise AttributeError(error_text)
+        
+        if len(args) == 2:
+            super().__init__(args, kwargs)
+        elif len(args) == 5:
+            try:
+                
+                n = 1 if isinstance(args[0], (int, float)) else len(args[0])
+            except Exception as e:
+                print(e)
+                error_text = "[EulerLagrangeController] If five arguments are given, the matrices that are defining the Euler-Lagrange system should be given."
+                raise AttributeError(error_text)
+
+            states = 'p0:{}'.format(n)
+            inputs = args[4]
+            super().__init__(states, inputs=inputs, *kwargs)
+            if 'Qrnc' in kwargs.keys():
+                Qrnc = kwargs['Qrnc']
+                # Implement Nrnc
+                if 'Nrnc' in kwargs.keys():
+                    Nrnc = kwargs['Nrnc']
+                else:
+                    Nrnc = eye(n)
+                Qrnc_processed = self.__create_term__(Nrnc, Qrnc)
+                
+            else:
+                Qrnc_processed = None
+            # TODO: implement F, and g
+            self.define_system(args, Qrnc=Qrnc_processed, g=g)
+                
+    def __create_term__(self, argument, term):
+        argument = argument * self.minimal_states
+        print(argument)

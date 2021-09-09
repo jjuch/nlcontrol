@@ -29,7 +29,7 @@ class ControllerBase(SystemBase):
     Parameters
     -----------
     states : string or array-like
-        if `states` is a string, it is a comma-separated listing of the state names. If `states` is array-like it contains the states as sympy's dynamic symbols.
+        if `states` is a string, it is a comma-separated listing of the state names. If `states` is array-like it contains the states as sympy's dynamic symbols. If `None`the system is stateless.
     inputs : string or array-like
         if `inputs` is a string, it is a comma-separated listing of the input names. If `inputs` is array-like it contains the inputs as sympy's dynamic symbols.
     system : simupy's DynamicalSystem object (simupy.systems.symbolic), optional
@@ -69,15 +69,6 @@ class ControllerBase(SystemBase):
     """
 
     def __init__(self, *args, **kwargs):
-        if 'inputs' in kwargs.keys():
-            inputs = kwargs['inputs']
-        else:
-            error_text = "[nlcontrol.systems.ControllerBase] An 'inputs=' keyword is necessary."
-            raise AssertionError(error_text)
-        if 'states' in kwargs.keys():
-            states = kwargs['states']
-        else:
-            states = None
         if 'system' in kwargs.keys():
             sys = kwargs['system']
         else:
@@ -86,6 +77,8 @@ class ControllerBase(SystemBase):
             name = kwargs['name']
         else:
             name = "controller"
+        states = args[0]
+        inputs = args[1]
         super().__init__(states, inputs, system=sys, name=name, block_type="controller")
         self.dinputs, self.iinputs = self.__create_inputs__()
 
