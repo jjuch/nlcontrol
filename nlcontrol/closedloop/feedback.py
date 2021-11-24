@@ -198,7 +198,6 @@ class ClosedLoop(object):
                 block_type="closedloop", 
                 forward_sys=self.forward_system, 
                 backward_sys=self.backward_system)
-
             sys.set_dynamics(output_equations, state_equation=state_equations)
         return sys
         
@@ -275,7 +274,7 @@ class ClosedLoop(object):
         state_equations = []
 
         fwd_output_equations, bwd_output_equations = self.__get_output_equations__(inputs)
-
+        
         if None in fwd_output_equations or None in bwd_output_equations:
             states = None
             state_equations = None
@@ -308,25 +307,30 @@ class ClosedLoop(object):
                 else:
                     #unprocessed_substitutions_system = zip(self._fwd_system.inputs, (-1) * self._bwd_system.output_equation)
                     unprocessed_substitutions_system = zip(self._fwd_system.inputs, inputs - bwd_output_equations)
-
+                state_eq_temp = []
                 if self._fwd_system.states is not None:
                     # Remove Derivative(., 't') from controller states and substitutions_system
-                    minimal_dstates = self._fwd_system.states[1::2]
-                    dstates = self._fwd_system.dstates[0::2]
+                    n_fwd_states = len(self._fwd_system.states)
+                    n_2_fwd_states = int(np.floor(n_fwd_states/2)) 
+                    minimal_dstates = self._fwd_system.states[n_2_fwd_states:None]
+                    dstates = self._fwd_system.dstates[0:n_2_fwd_states]
                     substitutions_derivatives = dict(zip(dstates, minimal_dstates))
                     substitutions_system = dict([(k, msubs(v, substitutions_derivatives))\
                         for k, v in unprocessed_substitutions_system])
 
                     states.extend(self._fwd_system.states)
-                    state_equations.extend([msubs(state_eq, substitutions_derivatives, substitutions_system)\
-                        for state_eq in self._fwd_system.state_equation])                
-                    
+                    state_eq_temp = [msubs(state_eq, substitutions_derivatives, substitutions_system)\
+                        for state_eq in self._fwd_system.state_equation]            
                 if self._bwd_system is not None and self._bwd_system.states is not None:
+                    state_equations.extend(state_eq_temp)
                     states.extend(self._bwd_system.states)
                     unprocessed_substit_bwd_system = zip(self._bwd_system.inputs, fwd_output_equations)
-                    
-                    minimal_dstates = self._bwd_system.states[1::2]
-                    dstates = self._bwd_system.dstates[0::2]
+
+                    n_bwd_states = len(self._bwd_system.states)
+                    n_2_bwd_states = int(np.floor(n_bwd_states/2)) 
+                    minimal_dstates = self._bwd_system.states[n_2_bwd_states:None]
+                    dstates = self._bwd_system.dstates[0:n_2_bwd_states]
+
                     substitutions_derivatives = dict(zip(dstates, minimal_dstates))
                     substitutions_system = dict([(k, msubs(v, substitutions_derivatives))\
                         for k, v in unprocessed_substit_bwd_system])
@@ -334,7 +338,12 @@ class ClosedLoop(object):
                     controller_state_eq = [msubs(state_eq, substitutions_derivatives, substitutions_system)\
                         for state_eq in self._bwd_system.state_equation]
 
-                    state_equations.extend(controller_state_eq)     
+                    state_equations.extend(controller_state_eq)   
+                else:
+                    bwd_inputs = self._bwd_system.inputs
+                    substitutions_bwd_inputs = dict(zip(bwd_inputs,fwd_output_equations))
+                    state_equations.extend([msubs(state_eq, substitutions_bwd_inputs)\
+                        for state_eq in state_eq_temp])
         return states, state_equations, fwd_output_equations
     
     def __get_output_equations__(self, inputs):
@@ -365,7 +374,6 @@ class ClosedLoop(object):
                     bwd_output_equations.append(None)
                 else:
                     unprocessed_fwd_substitution_system = zip(self._fwd_system.inputs, inputs - self._fwd_system.output_equation)
-                    print(unprocessed_fwd_substitution_system)
                     minimal_dstates = self._fwd_system.states[1::2]
                     dstates = self._fwd_system.dstates[0::2]
                     substitutions_derivatives = dict(zip(dstates, minimal_dstates))
@@ -722,7 +730,7 @@ class ClosedLoop(object):
         x_p = self.__slice_simulation_results__(x_p_idx, res.x)
         y_c = self.__slice_simulation_results__(y_c_idx, res.y)
         x_c = self.__slice_simulation_results__(x_c_idx, res.x)
-        
+
         if plot:
             plt.figure()
             plt.subplot(1, 2, 1)
@@ -765,17 +773,18 @@ class ClosedLoop(object):
         ndarray or None : the sliced dataset.        
         """
         result = None
-        if len(slice_indices) != 0:
+        if len(slice_indices) != 0 :
             for sl in slice_indices:
-                data_slice = data[:, sl]
-                if result is None:
-                    # initialize result before using concatenate function
-                    result = data_slice
-                else:
-                    if invert:
-                        result = np.concatenate((data_slice, result), axis=1)
+                if sl.start != sl.stop:
+                    data_slice = data[:, sl]
+                    if result is None:
+                        # initialize result before using concatenate function
+                        result = data_slice
                     else:
-                        result = np.concatenate((result, data_slice), axis=1)
+                        if invert:
+                            result = np.concatenate((data_slice, result), axis=1)
+                        else:
+                            result = np.concatenate((result, data_slice), axis=1)
         return result
 
 
