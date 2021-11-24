@@ -136,13 +136,13 @@ class PID(ControllerBase):
         D : list or expression or None
             A list of expressions or an expression defining psi0. If D is None, the controller does not contain a D-action.
         """
-        P = [P] if not isinstance(P, list) and fct is not None else P
+        P = [P] if not isinstance(P, list) and P is not None else P
         dim = len(P)
         self.P_action = P
         if I is None:
             self.I_action = None
         else:
-            I = [I] if not isinstance(I, list) and fct is not None else I
+            I = [I] if not isinstance(I, list) and I is not None else I
             if len(I) == dim:
                 self.I_action = I
             else:
@@ -151,7 +151,7 @@ class PID(ControllerBase):
         if D is None:
             self.D_action = None
         else:
-            D = [D] if not isinstance(D, list) and fct is not None else D
+            D = [D] if not isinstance(D, list) and D is not None else D
             if len(D) == dim:
                 self.D_action = D
             else:
@@ -164,21 +164,25 @@ class PID(ControllerBase):
         """
         Create the inputs and output equations from the P, PI,PD, or PID's expressions. 
         """
+        inputs = self.inputs.tolist()
         if self.I_action is None and self.D_action is None:
             # P-controller
-            inputs = self.inputs
             output_equation = Array(self.P_action)
         elif self.I_action is None:
             # PD-controller
-            inputs = [val for pair in zip(self.inputs, self.dinputs) for val in pair]
+            #inputs = [val for pair in zip(self.inputs, self.dinputs) for val in pair]
+            inputs.extend(self.dinputs)
             output_equation = Array([sum(x) for x in zip(self.P_action, self.D_action)])
         elif self.D_action is None:
             # PI-controller
-            inputs = [val for pair in zip(self.inputs, self.iinputs) for val in pair]
+            #inputs = [val for pair in zip(self.inputs, self.iinputs) for val in pair]
+            inputs.extend(self.iinputs)
             output_equation = Array([sum(x) for x in zip(self.P_action, self.I_action)])
         else:
             # PID-controller
-            inputs = [val for pair in zip(self.inputs, self.iinputs, self.dinputs) for val in pair]
+            #inputs = [val for pair in zip(self.inputs, self.iinputs, self.dinputs) for val in pair]
+            inputs.extend(self.iinputs)
+            inputs.extend(self.dinputs)
             output_equation = Array([sum(x) for x in zip(self.P_action, self.I_action, self.D_action)])
         self.inputs = Array(inputs)
         self.system = MemorylessSystem(input_=inputs, output_equation=output_equation)

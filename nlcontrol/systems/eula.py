@@ -8,6 +8,7 @@ from simupy.systems.symbolic import DynamicalSystem
 from nlcontrol.systems import SystemBase
 
 import math
+import numpy as np
 
 __all__ = ["EulerLagrange"]
 
@@ -320,7 +321,7 @@ class EulerLagrange(SystemBase):
         def condition_input(x):
             if isinstance(x, (float, int, Expr)):
                 x_cond = Matrix([[x]])
-            elif isinstance(x, list):
+            elif isinstance(x, (list, np.ndarray, np.matrix)):
                 x_cond = Matrix(x)
             else:
                 x_cond = x
