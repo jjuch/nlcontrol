@@ -1,4 +1,4 @@
-from simupy.block_diagram import BlockDiagram
+from simupy.block_diagram import BlockDiagram, SimulationResult
 from simupy.systems.symbolic import DynamicalSystem, MemorylessSystem
 from sympy.matrices import Matrix
 from sympy.physics.mechanics import msubs
@@ -656,6 +656,30 @@ class ClosedLoop(object):
         return BD, indices
 
 
+    def __simulation_loop__(self, time, block_diagram, system_with_states, integrator_options):
+        """
+        Loop through a time vector and simulate the simupy.BlockDiagram object for a each given time. Returns a simupy.SimulationResult object.
+        """
+        res = SimulationResult(block_diagram.cum_states[-1], block_diagram.cum_outputs[-1],time, block_diagram.systems.size)
+        for index, t in enumerate(time):
+            if index == 0:
+                tspan = [0, t]
+            else:
+                tspan = [time[index - 1], t]
+            res_temp = block_diagram.simulate(tspan, integrator_options=integrator_options)
+            # print(index, ': ', tspan, ' - ', res_temp.t)
+            res.t[index] = res_temp.t[-1]
+            res.x[index] = res_temp.x[-1]
+            res.y[index] = res_temp.y[-1]
+            res.e[index] = res_temp.e[-1]
+            if len(system_with_states) != 0:
+                cum_states = 0
+                for sys in system_with_states:
+                    sys.initial_condition = res.x[index][cum_states:cum_states + sys.dim_state]
+                    cum_states = cum_states + sys.dim_state
+        return res
+
+
     def simulation(self, tspan, initial_conditions, plot=False, custom_integrator_options=None):
         """
         Simulates the closed-loop in various conditions. It is possible to impose initial conditions on the states of the system. The results of the simulation are numerically available. Also, a plot of the states and outputs is available. To simulate the system scipy's ode is used. 
@@ -717,7 +741,16 @@ class ClosedLoop(object):
             }
 
         self._fwd_system.system.initial_condition = initial_conditions
-        res = self.block_diagram.simulate(tspan, integrator_options=integrator_options)
+        if np.isscalar(tspan):
+            res = self.block_diagram.simulate(tspan, integrator_options=integrator_options)
+        elif len(tspan) == 2:
+            res = self.block_diagram.simulate(tspan, integrator_options=integrator_options)
+        else:
+            system_with_states = []
+            for sys in self.block_diagram.systems:
+                if hasattr(sys, 'dim_state') and sys.dim_state > 0:
+                    system_with_states.append(sys)
+            res = self.__simulation_loop__(tspan, self.block_diagram, system_with_states, integrator_options)
         
         # Unpack indices
         y_p_idx = self.indices['process']['output']
