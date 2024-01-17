@@ -128,14 +128,16 @@ class EulerLagrange(SystemBase):
             del kwargs['diff_inputs']
             # Due to running the self.inputs setter twice (see line below else and super().__init__) the self._dinputs_bool needs to be reset in between the two calls. To avoid losing this information the bool is set to it correct value again afterwards. This is a dirty solution and should be solved more elegantly if possible.
             dinputs_memory_bool = self._dinputs_bool
-        self.inputs = inputs
-        super().__init__(extended_states, self.inputs, block_type='system', **kwargs)
         self._dinputs_bool = dinputs_memory_bool
         self._M = None
         self._C = None
         self._K = None
         self._Qrnc = None
         self._F = None
+        self._y = None
+
+        self.inputs = inputs
+        super().__init__(extended_states, self.inputs, block_type='system', **kwargs)
     
     
     def __str__(self):
@@ -198,10 +200,17 @@ class EulerLagrange(SystemBase):
         return self._M
 
     @inertia_matrix.setter
-    def inertia_matrix(self, matrix:Matrix):
+    def inertia_matrix(self, matrix:tuple or Matrix):
+        if len(matrix) == 2:
+            update_system = matrix[1]
+            matrix = matrix[0]
+        else:
+            update_system = True
         if self.check_symmetry(matrix):
             if matrix.shape[0] == len(self.minimal_states):
                 self._M = matrix
+                if update_system:
+                    self.define_system()
             else:
                 error_text = "[EulerLagrange.inertia_matrix (setter)] The intertia matrix' dimension do not match the minimal state's dimension."
                 raise ValueError(error_text)
@@ -219,9 +228,16 @@ class EulerLagrange(SystemBase):
         return self._C
 
     @damping_matrix.setter
-    def damping_matrix(self, matrix:Matrix):
+    def damping_matrix(self, matrix:tuple or Matrix):
+        if len(matrix) == 2:
+            update_system = matrix[1]
+            matrix = matrix[0]
+        else:
+            update_system = True
         if matrix.shape[1] == len(self.minimal_states):
             self._C = matrix
+            if update_system:
+                self.define_system()
         else:
             error_text = "[EulerLagrange.damping_matrix (setter)] The damping matrix' row length does not match the minimal state's dimension."
             raise ValueError(error_text)
@@ -236,9 +252,16 @@ class EulerLagrange(SystemBase):
         return self._K
 
     @stiffness_matrix.setter
-    def stiffness_matrix(self, matrix:Matrix):
+    def stiffness_matrix(self, matrix:tuple or Matrix):
+        if len(matrix) == 2:
+            update_system = matrix[1]
+            matrix = matrix[0]
+        else:
+            update_system = True
         if matrix.shape[0] == len(self.minimal_states):
             self._K = matrix
+            if update_system:
+                self.define_system()
         else:
             error_text = "[EulerLagrange.stiffness_matrix (setter)] The elastic matrix' length does not match the minimal state's dimension."
             raise ValueError(error_text)
@@ -253,9 +276,16 @@ class EulerLagrange(SystemBase):
         return self._Qrnc
 
     @non_conservative_force.setter
-    def non_conservative_force(self, matrix:Matrix):
+    def non_conservative_force(self, matrix:tuple or Matrix):
+        if len(matrix) == 2:
+            update_system = matrix[1]
+            matrix = matrix[0]
+        else:
+            update_system = True
         if matrix.shape[0] == len(self.minimal_states):
             self._Qrnc = matrix
+            if update_system:
+                self.define_system()
         else:
             error_text = "[EulerLagrange.non_conservative_force (setter)] The non_conservative force vector's length does not match the minimal state's dimension."
             raise ValueError(error_text)
@@ -270,15 +300,42 @@ class EulerLagrange(SystemBase):
         return self._F
 
     @input_vector.setter
-    def input_vector(self, matrix:Matrix):
+    def input_vector(self, matrix:tuple or Matrix):
+        if len(matrix) == 2:
+            update_system = matrix[1]
+            matrix = matrix[0]
+        else:
+            update_system = True
         if matrix.shape[0] == len(self.minimal_states):
             self._F = matrix
+            if update_system:
+                self.define_system()
         else:
             error_text = "[EulerLagrange.input_vector (setter)] The force vector's length does not match the minimal state's dimension."
             raise ValueError(error_text)
+        
+    @property
+    def output_vector(self) -> Matrix:
+        """
+        :obj:`sympy Matrix`
+
+        The matrix represents the output vector. This is a non-square matrix. More on `sympy's Matrix <https://docs.sympy.org/latest/modules/matrices/dense.html#matrix-class-reference>`__.
+        """
+        return self._y
+    
+    @output_vector.setter
+    def output_vector(self, matrix:tuple or Matrix):
+        if len(matrix) == 2:
+            update_system = matrix[1]
+            matrix = matrix[0]
+        else:
+            update_system = True
+        self._y = matrix
+        if update_system:
+            self.define_system()
 
 
-    def define_system(self, M, C, K, F, Qrnc=None, g=None):
+    def define_system(self, M=None, C=None, K=None, F=None, Qrnc=None, g=None):
         """
         Define the Euler-Lagrange system using the differential equation representation:
 
@@ -296,18 +353,18 @@ class EulerLagrange(SystemBase):
         .. math::
             y = g(x^{*}, u)
 
-        .. note:: Use create_variables() for an easy notation of state[i] and dstate[i].
+        .. note:: Use create_variables() for an easy notation of state[i] and dstate[i]. If no matrix is specified for M, C, K, and F, the class object's matrix is used.
 
         Parameters:
         -----------
-        M : array-like or float
-            Inertia matrix, the matrix is positive definite symmetric. Size: n x n
-        C : array-like or float
-            Coriolis and matrix. Size: m x n
-        K : array-like or float
-            Stiffness matrix. Size: n x 1
-        F : array-like
-            Input forces/torque, non-square matrix. Size: n x 1
+        M : array-like or float, optional (default: None)
+            Inertia matrix, the matrix is positive definite symmetric. If 'None' is provided, self.inertia_matrix is used. Size: n x n. 
+        C : array-like or float, optional (default: None)
+            Coriolis matrix. If 'None' is provided, self.damping_matrix is used. Size: m x n
+        K : array-like or float, optional (default: None)
+            Stiffness matrix. If 'None' is provided, self.stiffness_matrix is used. Size: n x 1
+        F : array-like, optional (default: None)
+            Input forces/torque, non-square matrix. If 'None' is provided, self.input_vector is used. Size: n x 1
         Qrnc : array-like, optional
             Real non-conservative forces, non-square matrix. Size: n x 1
         g : array-like, optional
@@ -328,31 +385,40 @@ class EulerLagrange(SystemBase):
             return x_cond
         
         # Transform to sympy matrices and store
-        M_mat = condition_input(M)
-        self.inertia_matrix = M_mat
-        C_mat = condition_input(C)
-        self.damping_matrix = C_mat
-        K_mat = condition_input(K)
-        self.stiffness_matrix = K_mat
-        F_mat = condition_input(F)
-        self.input_vector = F_mat
+        if M is not None:
+            M_mat = condition_input(M)
+            self.inertia_matrix = (M_mat, False)
+        if C is not None:
+            C_mat = condition_input(C)
+            self.damping_matrix = (C_mat, False)
+        if K is not None:
+            K_mat = condition_input(K)
+            self.stiffness_matrix = (K_mat, False)
+        if F is not None:
+            F_mat = condition_input(F)
+            self.input_vector = (F_mat, False)
 
-        if Qrnc is None:
+  
+        if Qrnc is not None:
+            Qrnc_mat = condition_input(Qrnc)
+            self.non_conservative_force = (Qrnc_mat, False)
+        elif self.non_conservative_force is None:
             n = len(self.minimal_states)
             Qrnc = zeros(n, 1)
-        Qrnc_mat = condition_input(Qrnc)
-        self.non_conservative_force = Qrnc_mat
+            Qrnc_mat = condition_input(Qrnc)
+            self.non_conservative_force = (Qrnc_mat, False)
 
-        if g is None:
-            output_equation = self.states
-        else:
+        if g is not None:
             output_conditioned = condition_input(g)
-            output_equation = self.create_output_equation(output_conditioned)
+            self.output_vector = (self.create_output_equation(output_conditioned), False)
+        elif self.output_vector is None:
+            self.output_vector = (self.states, False)
+            
         
         state_equations = self.create_state_equations()
         # Deprecated:
         # self.system = DynamicalSystem(state_equation=state_equations, output_equation=output_equation, state=self.states, input_=self.inputs)
-        self.set_dynamics(output_equation, state_equation=state_equations)
+        self.set_dynamics(self.output_vector, state_equation=state_equations)
 
     
     def __extend_states__(self, states):
