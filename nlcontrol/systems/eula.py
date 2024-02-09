@@ -530,7 +530,7 @@ class EulerLagrange(SystemBase):
         substitution = dict(zip(dstates, minimal_dstates))
         deriv_subs = self.__create_derivative_substitutions__()
         
-        M_inv = self.inertia_matrix.inv()
+        M_inv = self.inertia_matrix._rep.to_field().inv().to_Matrix()
         states_dotdot = M_inv * self.input_vector \
             - M_inv * self.damping_matrix * minimal_dstates \
             - M_inv * self.stiffness_matrix \
